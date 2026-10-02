@@ -1,4 +1,4 @@
-- [Codegen overwrites api-zod index.ts](codegen-api-zod-index.md) — after every `pnpm --filter @workspace/api-spec run codegen`, must manually restore `lib/api-zod/src/index.ts` to only export `./generated/api`.
-- [Orval and js-yaml compatibility](orval-js-yaml-compat.md) — current js-yaml security override breaks Orval's default ESM import; verify the generator before relying on codegen.
+- [Codegen overwrites api-zod index.ts](codegen-api-zod-index.md) — codegen must run the full script (orval + postprocess); postprocess restores `lib/api-zod/src/index.ts` to only export `./generated/api`, bare orval does not.
+- [Orval and js-yaml compatibility](orval-js-yaml-compat.md) — js-yaml security override can break Orval's default ESM import; codegen verified working 2026-10-02, re-check after upgrading orval/js-yaml overrides.
 - [Workspace package installation](workspace-package-installation.md) — package installs must target the workspace package, not the monorepo root.
 - [Google OAuth preview origin](google-oauth-preview-origin.md) — appPreview runs on localhost and can trigger a false origin-not-allowed error for Google.

@@ -10,7 +10,7 @@ permissions:
 jobs:
   dependency-review:
     name: Review dependencies
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     # Dependency Review API требует GitHub Advanced Security для приватных
     # репозиториев — без лицензии job пропускается.
     if: github.repository_owner == 'fast-iq' && github.event.repository.private == false

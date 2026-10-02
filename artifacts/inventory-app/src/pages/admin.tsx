@@ -71,8 +71,8 @@ function useAdminUsers() {
     try {
       const data = await fetchAdminUsers();
       setUsers(data);
-    } catch (e: any) {
-      setError(e.message);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
     } finally {
       setLoading(false);
     }
@@ -114,7 +114,7 @@ export default function AdminPage() {
     load();
   }
 
-  const isAdmin = (me as any)?.isAdmin;
+  const isAdmin = me?.isAdmin;
   if (me && !isAdmin) {
     return <Redirect to="/dashboard" />;
   }
@@ -125,10 +125,10 @@ export default function AdminPage() {
       const updated = await patchAdminUser(userId, { language: lang });
       updateUser(updated);
       toast({ title: t("admin.languageUpdated"), description: updated.name });
-    } catch (e: any) {
+    } catch (e) {
       toast({
         title: t("admin.updateFailed"),
-        description: e.message,
+        description: e instanceof Error ? e.message : String(e),
         variant: "destructive",
       });
     } finally {
@@ -145,10 +145,10 @@ export default function AdminPage() {
         title: makeAdmin ? t("admin.adminGranted") : t("admin.adminRevoked"),
         description: updated.name,
       });
-    } catch (e: any) {
+    } catch (e) {
       toast({
         title: t("admin.updateFailed"),
-        description: e.message,
+        description: e instanceof Error ? e.message : String(e),
         variant: "destructive",
       });
     } finally {
@@ -156,7 +156,7 @@ export default function AdminPage() {
     }
   };
 
-  const myId = (me as any)?.id;
+  const myId = me?.id;
 
   return (
     <div className="flex h-screen bg-background text-foreground">

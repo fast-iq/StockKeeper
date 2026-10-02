@@ -31,3 +31,4 @@ export * from './updateCategoryBody';
 export * from './updateItemBody';
 export * from './updateShoppingListBody';
 export * from './user';
+export * from './userLanguage';

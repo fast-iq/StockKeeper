@@ -41,5 +41,15 @@ export default tseslint.config(
       globals: { ...globals.node },
     },
   },
+  {
+    files: [
+      "**/*.mjs",
+      "artifacts/mockup-sandbox/mockupPreviewPlugin.ts",
+      "scripts/**",
+    ],
+    rules: {
+      "security/detect-non-literal-fs-filename": "off",
+    },
+  },
   prettier,
 );

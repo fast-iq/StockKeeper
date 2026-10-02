@@ -17,10 +17,21 @@ export interface MessageResponse {
   message: string;
 }
 
+export type UserLanguage = typeof UserLanguage[keyof typeof UserLanguage];
+
+
+export const UserLanguage = {
+  auto: 'auto',
+  ru: 'ru',
+  en: 'en',
+} as const;
+
 export interface User {
   id: number;
   email: string;
   name: string;
+  language: UserLanguage;
+  isAdmin: boolean;
   createdAt: string;
 }
 

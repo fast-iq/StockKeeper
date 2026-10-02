@@ -1,11 +1,21 @@
-import { Router, type IRouter } from "express";
+import {
+  Router,
+  type IRouter,
+  type NextFunction,
+  type Request,
+  type Response,
+} from "express";
 import { db, usersTable, itemsTable } from "@workspace/db";
 import { eq, count } from "drizzle-orm";
 import { requireAuth } from "../middlewares/auth";
 
 const router: IRouter = Router();
 
-async function requireAdmin(req: any, res: any, next: any): Promise<void> {
+async function requireAdmin(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
   const [user] = await db
     .select({ isAdmin: usersTable.isAdmin })
     .from(usersTable)

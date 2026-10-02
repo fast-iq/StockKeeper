@@ -14,7 +14,7 @@ $nodeDir = "C:\Users\Sidelnikov\AppData\Local\Temp\node24-extract\node-v24.11.1-
 $env:PATH = "$nodeDir;C:\Users\Sidelnikov\AppData\Local\Temp\opencode\bin;C:\Program Files\Git\usr\bin;$env:PATH"
 Set-Location "D:\Project\TypeScript\StockKeeper"
 pnpm run format:check      # репо должно быть полностью отформатировано (CI gate)
-pnpm run lint              # 0 ошибок (warnings допустимы, см. §2.13)
+pnpm run lint              # 0 ошибок И 0 warnings (гейт --max-warnings=0, см. §2.13)
 pnpm run typecheck         # 0 ошибок
 pnpm run test              # 7/7
 pnpm run build             # typecheck + сборка всех workspace-пакетов
@@ -52,9 +52,12 @@ pnpm audit --audit-level=high   # No known vulnerabilities found
     у CodeQL и Dependency Review дополнительно `github.event.repository.private == false` — это защита от
     падения без лицензии GitHub Advanced Security на приватном репо. Не убирать без понимания последствий;
     если репо станет публичным или подключат GHAS — guard можно убрать (job'ы включатся сами).
-13. **ESLint**: errors валят CI, warnings — нет. `@typescript-eslint/no-explicit-any` и эвристики
-    `eslint-plugin-security` (non-literal-fs и т.п.) намеренно оставлены как warnings — НЕ ПОНИЖАТЬ до
-    error без сначала починки всего фонда; не отключать `security/*` правила вообще.
+13. **ESLint**: скрипт `lint` = `eslint . --max-warnings=0` — CI падает и на warnings. Держать фонд
+    чистым (0/0): `no-explicit-any`, `security/*` — всё исправлено в коде, не подавлять.
+    Точечные исключения (единственные в репо): `security/detect-non-literal-fs-filename` выключен в
+    `eslint.config.mjs` только для build-тулчейна (`**/*.mjs`, `mockupPreviewPlugin.ts`, `scripts/**`);
+    `detect-possible-timing-attacks` — один `eslint-disable-next-line` на клиентскую проверку
+    `password !== confirm` в `reset-password.tsx`. Глобально `security/*` НЕ отключать.
 14. **Platform-overrides в `pnpm-workspace.yaml`**: записи вида `"pkg>pkg-platform": "-"` исключают нативные
     бинарники других платформ. Для `win32-x64` исключения rollup/esbuild/lightningcss/tailwind-oxide
     **удалены** (иначе `pnpm build` невозможен на Windows). Остальные исключения (в т.ч. `linux-x64-gnu`
@@ -115,7 +118,27 @@ pnpm audit --audit-level=high   # No known vulnerabilities found
 | `.github/workflows/zap.yml`               | DAST: Postgres-service → `drizzle-kit push` → сборка → сервер на :8080 → `zaproxy/action-baseline@v0.15.0` (baseline, alpha-правила `-a`)    | расписание: пн 03:30 UTC + `workflow_dispatch`; отчёт в артефакте `zap-baseline`; `fail_action` по умолчанию не валит job |
 | `.github/dependabot.yml`                  | weekly: npm (root) + github-actions, сгруппированные PR                                                                                      | version-updates; security-alerts для приватного репо требуют GHAS                                                         |
 
-Скрипты в root `package.json`: `lint` (eslint .), `test`, `format`, `format:check`, `packageManager: pnpm@10.34.6`.
+Скрипты в root `package.json`: `lint` (`eslint . --max-warnings=0`), `test`, `format`, `format:check`, `packageManager: pnpm@10.34.6`.
+
+**Анти-ворнинги CI:** все job'ы используют `runs-on: ubuntu-24.04` (пин от миграции
+`ubuntu-latest` → Ubuntu 26, 19.10.2026 — не возвращать `ubuntu-latest` без причины);
+`gitleaks/gitleaks-action@v3` (v2 использует deprecated Node 20 — после 16.09.2026 вообще не запустится).
+
+### 3.5 Чистка lint-предупреждений (32 → 0) и спека User
+
+| Проблема                                                                                                                                        | Фикс                                                                                                                                                                                                                                                                                                                                                                                  | Файл(ы)                                                                                                                                                               |
+| ----------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| В openapi не описаны поля, которые реально возвращает `serializeUser` (`language`, `isAdmin`) → фронт кастовал через `as any`                   | в `User` добавлены `language` (enum `auto/ru/en`, все пути записи валидируют) и `isAdmin` в properties+required → `pnpm --filter @workspace/api-spec codegen` → union `UserLanguage`                                                                                                                                                                                                  | `lib/api-spec/openapi.yaml`, сгенерированные `lib/api-client-react/src/generated/api.schemas.ts`, `lib/api-zod/src/generated/**`                                      |
+| 24 × `no-explicit-any`                                                                                                                          | `requireAdmin(req/res/next: express-типы)`; cast'ы `user`/`me`/`data` убраны (типы появились); `catch (e: any)` → `catch (e)` + `e instanceof Error ? e.message : String(e)`; `onError (err: any)` → просто `err` (тип `ApiError<ErrorResponse>`); `StatCard(...: any)` → `StatCardProps` с `LucideIcon`; debounce-хак `(fn as any)._timer` → `useRef<ReturnType<typeof setTimeout>>` | `routes/admin.ts`, `Sidebar.tsx`, `admin.tsx`, `dashboard.tsx`, `inventory.tsx`, `item-detail.tsx`, `item-new.tsx`, `login.tsx`, `reset-password.tsx`, `settings.tsx` |
+| `onError` читал `err?.response?.data?.error` (axios-стиль) — у `ApiError` это всегда `undefined`, серверные сообщения об ошибке не показывались | `err.data?.error` (свойство `ApiError.data` = разобранный JSON-тело)                                                                                                                                                                                                                                                                                                                  | `login.tsx`, `settings.tsx`, `reset-password.tsx`                                                                                                                     |
+| timing-attack на `password !== confirm` (ложное: клиентская проверка формы)                                                                     | точечный `eslint-disable-next-line` с причиной                                                                                                                                                                                                                                                                                                                                        | `reset-password.tsx`                                                                                                                                                  |
+| 7 × `security/detect-non-literal-fs-filename` в build-тулчейне (codegen postprocess, vite-плагин mockup)                                        | override правила «off» только для `**/*.mjs`, `mockupPreviewPlugin.ts`, `scripts/**`                                                                                                                                                                                                                                                                                                  | `eslint.config.mjs`                                                                                                                                                   |
+| warnings вообще не должны накапливаться                                                                                                         | `lint` → `eslint . --max-warnings=0` (падение CI при первом же warning)                                                                                                                                                                                                                                                                                                               | `package.json`                                                                                                                                                        |
+
+**Про codegen:** после `pnpm --filter @workspace/api-spec codegen` запускать полный скрипт
+(он включает `postprocess-generated.mjs` — он нормализует `lib/api-zod/src/index.ts` до одного
+`export * from "./generated/api"`; голый `orval` без постпроцесса оставит двойной barrel → TS2308).
+Сгенерированные файлы в `.prettierignore` — format:check их не трогает.
 
 ## 4. Итоги верификации (02.10.2026)
 
@@ -133,7 +156,14 @@ pnpm audit --audit-level=high   # No known vulnerabilities found
 - `pnpm run typecheck`, `pnpm run test` (7/7), `pnpm run build` (все пакеты, включая vite) → OK.
 - `pnpm install --frozen-lockfile` → OK (воспроизводимо, как в CI); `pnpm audit --audit-level=high` → 0.
 
-## 5. Изменённые файлы (git status на конец сессии 2)
+Сессия 3 (анти-ворнинги CI + чистка lint до нуля):
+
+- `pnpm run lint` (`--max-warnings=0`) → **0 ошибок, 0 warnings** (было 32 warnings).
+- `pnpm run format:check`, `pnpm run test` (7/7), `pnpm run build` (включая typecheck) → OK после codegen.
+- codegen (`orval` + postprocess) → exit 0; диф генерации только User-поля (+ `userLanguage.ts`).
+- В workflows заменено 7 × `runs-on: ubuntu-latest` → `ubuntu-24.04`, `gitleaks-action@v2` → `@v3`.
+
+## 5. Изменённые файлы (по сессиям)
 
 ```
 CI/CD (новые):
@@ -169,6 +199,17 @@ M artifacts/inventory-app/src/hooks/use-toast.ts            # actionTypes: const
 M artifacts/mockup-sandbox/src/hooks/use-toast.ts           # то же
 + ~210 файлов переформатировано prettier (полный реформат, включая *.md и json)
 ```
+
+Правки сессии 3 (ворнинги CI/lint + спека User; ещё не закоммичены):
+M .github/workflows/_.yml (5 шт.) # ubuntu-24.04 пин, gitleaks-action@v3
+M lib/api-spec/openapi.yaml # User: +language (enum auto/ru/en), +isAdmin
+M lib/api-client-react/src/generated/api.schemas.ts # UserLanguage, поля User (+codegen)
+M lib/api-zod/src/generated/{api.ts, types/_} # то же на zod/типы (+types/userLanguage.ts новый)
+M artifacts/api-server/src/routes/admin.ts # requireAdmin: any → express Request/Response/NextFunction
+M artifacts/inventory-app/src/… (9 файлов) # -24 any: типы User, catch unknown, StatCardProps, # useRef вместо \_timer-хака, onError → err.data?.error
+M eslint.config.mjs # fs-heuristics off для build-тулчейна
+M package.json # lint: --max-warnings=0
+M AGETS.md # §1/§2.13/§3.5/§4/§5
 
 ## 6. Окружение и известные ограничения
 

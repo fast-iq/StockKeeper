@@ -86,7 +86,7 @@ export default function LoginPage() {
       { data: { email, password } },
       {
         onSuccess: (data) => {
-          const lang = (data as any)?.user?.language;
+          const lang = data.user.language;
           if (lang === "ru" || lang === "en") {
             setLanguage(lang);
           }
@@ -96,11 +96,10 @@ export default function LoginPage() {
           });
           setLocation("/dashboard");
         },
-        onError: (err: any) => {
+        onError: (err) => {
           toast({
             title: t("auth.loginFailed"),
-            description:
-              err?.response?.data?.error || t("auth.invalidCredentials"),
+            description: err.data?.error || t("auth.invalidCredentials"),
             variant: "destructive",
           });
         },
@@ -125,10 +124,10 @@ export default function LoginPage() {
           });
           setLocation("/dashboard");
         },
-        onError: (err: any) => {
+        onError: (err) => {
           toast({
             title: t("auth.registerFailed"),
-            description: err?.response?.data?.error || t("auth.couldNotCreate"),
+            description: err.data?.error || t("auth.couldNotCreate"),
             variant: "destructive",
           });
         },
@@ -141,7 +140,7 @@ export default function LoginPage() {
       { data: { idToken: credential } },
       {
         onSuccess: (data) => {
-          const lang = (data as any)?.user?.language;
+          const lang = data.user.language;
           if (lang === "ru" || lang === "en") {
             setLanguage(lang);
           }
@@ -151,11 +150,10 @@ export default function LoginPage() {
           });
           setLocation("/dashboard");
         },
-        onError: (err: any) => {
+        onError: (err) => {
           toast({
             title: t("auth.googleLoginFailed"),
-            description:
-              err?.response?.data?.error || t("auth.googleLoginError"),
+            description: err.data?.error || t("auth.googleLoginError"),
             variant: "destructive",
           });
         },

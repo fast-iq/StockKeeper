@@ -78,11 +78,10 @@ export default function SettingsPage() {
             description: t("settings.passwordUpdatedDescription"),
           });
         },
-        onError: (error: any) => {
+        onError: (error) => {
           toast({
             title: t("settings.passwordUpdateFailed"),
-            description:
-              error?.response?.data?.error || t("settings.passwordUpdateError"),
+            description: error.data?.error || t("settings.passwordUpdateError"),
             variant: "destructive",
           });
         },

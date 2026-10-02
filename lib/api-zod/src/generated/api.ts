@@ -31,6 +31,8 @@ export const RegisterResponse = zod.object({
   "id": zod.number(),
   "email": zod.string(),
   "name": zod.string(),
+  "language": zod.enum(['auto', 'ru', 'en']),
+  "isAdmin": zod.boolean(),
   "createdAt": zod.string()
 }),
   "message": zod.string()
@@ -50,6 +52,8 @@ export const LoginResponse = zod.object({
   "id": zod.number(),
   "email": zod.string(),
   "name": zod.string(),
+  "language": zod.enum(['auto', 'ru', 'en']),
+  "isAdmin": zod.boolean(),
   "createdAt": zod.string()
 }),
   "message": zod.string()
@@ -71,6 +75,8 @@ export const GoogleLoginResponse = zod.object({
   "id": zod.number(),
   "email": zod.string(),
   "name": zod.string(),
+  "language": zod.enum(['auto', 'ru', 'en']),
+  "isAdmin": zod.boolean(),
   "createdAt": zod.string()
 }),
   "message": zod.string()
@@ -92,6 +98,8 @@ export const GetMeResponse = zod.object({
   "id": zod.number(),
   "email": zod.string(),
   "name": zod.string(),
+  "language": zod.enum(['auto', 'ru', 'en']),
+  "isAdmin": zod.boolean(),
   "createdAt": zod.string()
 })
 

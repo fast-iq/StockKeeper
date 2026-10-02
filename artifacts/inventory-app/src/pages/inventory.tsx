@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { AppLayout } from "@/components/layout/AppLayout";
 import {
@@ -91,13 +91,14 @@ export default function InventoryPage() {
     query: { queryKey: getListItemsQueryKey(queryParams) },
   });
 
+  const searchTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(
+    undefined,
+  );
+
   const handleSearchChange = (value: string) => {
     setSearch(value);
-    clearTimeout((handleSearchChange as any)._timer);
-    (handleSearchChange as any)._timer = setTimeout(
-      () => setDebouncedSearch(value),
-      300,
-    );
+    clearTimeout(searchTimerRef.current);
+    searchTimerRef.current = setTimeout(() => setDebouncedSearch(value), 300);
   };
 
   return (

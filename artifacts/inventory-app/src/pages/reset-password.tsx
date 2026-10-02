@@ -37,6 +37,7 @@ export default function ResetPasswordPage() {
     const password = form.get("password") as string;
     const confirm = form.get("confirm") as string;
 
+    // eslint-disable-next-line security/detect-possible-timing-attacks -- client-side form confirmation, not a secret comparison
     if (password !== confirm) {
       toast({ title: "Пароли не совпадают", variant: "destructive" });
       return;
@@ -57,12 +58,11 @@ export default function ResetPasswordPage() {
           setDone(true);
           setTimeout(() => setLocation("/login"), 3000);
         },
-        onError: (err: any) => {
+        onError: (err) => {
           toast({
             title: "Ошибка",
             description:
-              err?.response?.data?.error ||
-              "Ссылка недействительна или истекла",
+              err.data?.error || "Ссылка недействительна или истекла",
             variant: "destructive",
           });
         },

@@ -155,7 +155,7 @@ function NewItemForm({
           });
           setLocation(`/items/${item.id}`);
         },
-        onError: (err: any) => {
+        onError: (err) => {
           toast({
             title: t("itemNew.failedCreate"),
             description: err.message,

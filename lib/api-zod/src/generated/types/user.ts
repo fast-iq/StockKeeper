@@ -5,10 +5,13 @@
  * Inventory management API
  * OpenAPI spec version: 0.1.0
  */
+import type { UserLanguage } from './userLanguage';
 
 export interface User {
   id: number;
   email: string;
   name: string;
+  language: UserLanguage;
+  isAdmin: boolean;
   createdAt: string;
 }

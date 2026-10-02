@@ -9,6 +9,7 @@ import {
   getGetCategoryCountsQueryKey,
 } from "@workspace/api-client-react";
 import {
+  type LucideIcon,
   Package,
   FolderTree,
   TrendingUp,
@@ -249,7 +250,25 @@ export default function DashboardPage() {
   );
 }
 
-function StatCard({ title, value, icon: Icon, trend, color, bg, alert }: any) {
+type StatCardProps = {
+  title: string;
+  value: number;
+  icon: LucideIcon;
+  trend: string;
+  color: string;
+  bg: string;
+  alert?: boolean;
+};
+
+function StatCard({
+  title,
+  value,
+  icon: Icon,
+  trend,
+  color,
+  bg,
+  alert,
+}: StatCardProps) {
   return (
     <div
       className={`bg-card rounded-xl border p-6 flex flex-col justify-between ${alert ? "border-destructive shadow-[0_0_15px_rgba(255,0,0,0.1)]" : "border-border shadow-sm"}`}

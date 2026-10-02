@@ -38,7 +38,7 @@ export function Sidebar() {
   // Sync language from user preferences once available
   useEffect(() => {
     if (user) {
-      const userLang = (user as any).language;
+      const userLang = user.language;
       if (userLang === "ru" || userLang === "en") {
         const current = i18n.language?.startsWith("ru") ? "ru" : "en";
         if (current !== userLang) {
@@ -129,7 +129,7 @@ export function Sidebar() {
               </div>
             </Link>
 
-            {(user as any)?.isAdmin && (
+            {user?.isAdmin && (
               <Link href="/admin">
                 <div
                   className={cn(
@@ -224,7 +224,7 @@ export function Sidebar() {
                     label: t("nav.settings"),
                     icon: Settings,
                   },
-                  ...((user as any)?.isAdmin
+                  ...(user?.isAdmin
                     ? [{ href: "/admin", label: t("nav.admin"), icon: Shield }]
                     : []),
                 ].map((item) => {

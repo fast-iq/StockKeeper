@@ -2,6 +2,7 @@ import { useEffect, useState, useRef } from "react";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { AppLayout } from "@/components/layout/AppLayout";
 import {
+  type Item,
   useGetItem,
   getGetItemQueryKey,
   useUpdateItem,
@@ -133,7 +134,7 @@ export default function ItemDetailPage() {
     if (newQty < 0) return;
     setQuantity(newQty);
 
-    queryClient.setQueryData(getGetItemQueryKey(id), (old: any) =>
+    queryClient.setQueryData<Item>(getGetItemQueryKey(id), (old) =>
       old ? { ...old, quantity: newQty } : old,
     );
 
@@ -191,7 +192,7 @@ export default function ItemDetailPage() {
           queryClient.invalidateQueries({ queryKey: getListItemsQueryKey() });
           toast({ title: t("itemDetail.itemUpdated") });
         },
-        onError: (err: any) => {
+        onError: (err) => {
           toast({
             title: t("itemDetail.updateFailed"),
             description: err.message,
