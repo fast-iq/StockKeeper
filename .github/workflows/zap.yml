@@ -61,7 +61,7 @@ jobs:
 
       - name: Start API server
         run: |
-          node artifacts/api-server/dist/index.js > server.log 2>&1 &
+          node --enable-source-maps artifacts/api-server/dist/index.mjs > server.log 2>&1 &
           echo $! > server.pid
           for i in $(seq 1 30); do
             if curl -sf http://127.0.0.1:8080/api/healthz > /dev/null; then
