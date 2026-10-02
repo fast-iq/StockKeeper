@@ -42,6 +42,7 @@ function isAllowedOrigin(origin: string | undefined): boolean {
 
 const app: Express = express();
 
+app.disable("x-powered-by");
 app.set("trust proxy", 1);
 
 app.use(
@@ -65,6 +66,11 @@ app.use(
 );
 app.use((_req, res, next) => {
   res.setHeader("X-Content-Type-Options", "nosniff");
+  res.setHeader("Cache-Control", "no-store");
+  res.setHeader(
+    "Permissions-Policy",
+    "camera=(), microphone=(), geolocation=()",
+  );
   next();
 });
 app.use(
@@ -106,6 +112,17 @@ app.use("/api", router);
 
 app.use("/api", (_req, res) => {
   res.status(404).json({ error: "Not found" });
+});
+
+app.use((_req, res) => {
+  res
+    .status(404)
+    .set({
+      "Content-Type": "text/plain; charset=utf-8",
+      "Content-Security-Policy":
+        "default-src 'none'; frame-ancestors 'none'; form-action 'none'",
+    })
+    .send("Not Found");
 });
 
 const errorHandler: ErrorRequestHandler = (err, req, res, next) => {

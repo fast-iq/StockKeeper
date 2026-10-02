@@ -1,4 +1,4 @@
-# AGETS.md — памятка ассистента (изменения, инварианты, проверки)
+# AGENTS.md — памятка ассистента (изменения, инварианты, проверки)
 
 > **Правило работы:** перед любой задачей читать раздел «Инварианты» и «Изменения»;
 > после правок — прогонять «Команды проверки». Ничего из перечисленного ниже не ломать.
@@ -64,6 +64,13 @@ pnpm audit --audit-level=high   # No known vulnerabilities found
     остаётся НЕ исключённым — он нужен CI/Replit) не трогать и не переиспользовать для «оптимизации».
 15. **vite-конфиги** (`inventory-app`, `mockup-sandbox`): `PORT` (default `"3000"`) и `BASE_PATH` (default `"/"`)
     больше НЕ бросают throw при отсутствии env — сборка работает везде. Не возвращать безусловные throw.
+16. **Заголовки ответов API** (`app.ts`): `app.disable("x-powered-by")`; глобальный middleware ставит
+    `X-Content-Type-Options: nosniff`, `Cache-Control: no-store`, `Permissions-Policy: camera=(), microphone=(), geolocation=()`;
+    не-/api-404 — свой `text/plain`-хендлер с CSP `default-src 'none'; frame-ancestors 'none'; form-action 'none'`
+    (вместо HTML finalhandler express). Не убирать — это закрывает ZAP-алерты 10037/10063/10049/10055.
+17. **Отчёты ZAP не коммитить**: `results.sarif`, `report_html.html`, `report_json.json`, `report_md.md`
+    в `.gitignore` и `.prettierignore` (prettier не парсит отчётный html → `format:check` падает exit 2).
+    `results.sarif` при этом пустой (`results: []`) — источник истины для алертов = `report_md.md`/`report_json.json`.
 
 ## 3. Изменения (проблема → фикс → файлы)
 
@@ -140,6 +147,22 @@ pnpm audit --audit-level=high   # No known vulnerabilities found
 `export * from "./generated/api"`; голый `orval` без постпроцесса оставит двойной barrel → TS2308).
 Сгенерированные файлы в `.prettierignore` — format:check их не трогает.
 
+### 3.6 ZAP: первый прогон, разбор отчётов, `.zap/rules.tsv`
+
+Первый прогон (02.10.2026): **High 0 / Medium 1 / Low 2 / Info 5**, 4 эндпоинта (100% 4xx — без аутентификации).
+Секретов/куков в отчётах нет (3 «попадания» в sarif — описания правил каталога, не значения).
+
+| pluginid | Алерт                                            | Решение                                                                                           |
+| -------- | ------------------------------------------------ | ------------------------------------------------------------------------------------------------- |
+| 10037    | `X-Powered-By: Express` (Low)                    | `app.disable("x-powered-by")` — см. инвариант 16                                                  |
+| 10063    | Permissions-Policy not set (Low)                 | глобальный заголовок — инвариант 16                                                               |
+| 10049    | Storable and Cacheable (Info)                    | `Cache-Control: no-store` глобально — инвариант 16                                                |
+| 10055    | CSP без `frame-ancestors`/`form-action` (Medium) | источник — HTML404 finalhandler express; заменён своим text/plain-404 с полным CSP — инвариант 16 |
+| 90005    | Sec-Fetch-\* missing (Info, 4 алерта)            | IGNORE в `.zap/rules.tsv` (заголовки шлёт браузер, не сканер)                                     |
+
+Формат `.zap/rules.tsv` (как в README action-baseline): `ID<TAB>IGNORE<TAB>(название)` — **табы, не пробелы**;
+подключён в `zap.yml` через `rules_file_name: ".zap/rules.tsv"`. Новые ложные срабатывания добавлять туда же.
+
 ## 4. Итоги верификации (02.10.2026)
 
 Сессия 1 (безопасность кода и зависимости):
@@ -162,6 +185,14 @@ pnpm audit --audit-level=high   # No known vulnerabilities found
 - `pnpm run format:check`, `pnpm run test` (7/7), `pnpm run build` (включая typecheck) → OK после codegen.
 - codegen (`orval` + postprocess) → exit 0; диф генерации только User-поля (+ `userLanguage.ts`).
 - В workflows заменено 7 × `runs-on: ubuntu-latest` → `ubuntu-24.04`, `gitleaks-action@v2` → `@v3`.
+
+Сессия 4 (ZAP: отчёты, заголовки, rules.tsv):
+
+- Первый ручной ZAP-прогон успешен: High 0 / Medium 1 / Low 2 / Info 5; отчёты проверены на секреты — чисто.
+- Заголовки доведены до чистоты (см. инвариант 16): smoke на собранном `dist/index.mjs` подтвердил —
+  на `/` и `/api/healthz` нет `X-Powered-By`, есть `no-store` + `Permissions-Policy`, 404 отдаёт полный CSP.
+- `format:check` снова зелёный после добавления отчётов в ignore (до этого падал exit 2 на отчётном html).
+- Полная проверка: lint 0/0, format ✓, typecheck ✓, test 7/7, build ✓.
 
 ## 5. Изменённые файлы (по сессиям)
 
@@ -209,7 +240,15 @@ M artifacts/api-server/src/routes/admin.ts # requireAdmin: any → express Reque
 M artifacts/inventory-app/src/… (9 файлов) # -24 any: типы User, catch unknown, StatCardProps, # useRef вместо \_timer-хака, onError → err.data?.error
 M eslint.config.mjs # fs-heuristics off для build-тулчейна
 M package.json # lint: --max-warnings=0
-M AGETS.md # §1/§2.13/§3.5/§4/§5
+M AGENTS.md # §1/§2.13/§3.5/§4/§5
+
+Правки сессии 4 (ZAP: отчёты/заголовки/rules; ещё не закоммичены):
+M artifacts/api-server/src/app.ts # x-powered-by off, no-store+Permissions-Policy, свой404 с CSP
+M .github/workflows/zap.yml # + rules*file_name: .zap/rules.tsv
+M .gitignore / .prettierignore # + 4 файла отчётов ZAP
+A .zap/rules.tsv (новый) # 90005 IGNORE (Sec-Fetch-\*)
+M AGENTS.md # инварианты 16-17, §3.6, §4, §5
+(отчёты results.sarif/report*\* остались untracked и намеренно не коммичатся)
 
 ## 6. Окружение и известные ограничения
 
@@ -221,10 +260,10 @@ M AGETS.md # §1/§2.13/§3.5/§4/§5
 - **GHAS**: StockKeeper приватный, CodeQL и Dependency Review без лицензии GitHub Advanced Security не
   работают → закрыты guard'ом `private == false` (в awg-easy работают, т.к. тот репозиторий публичный).
   Если подключат GHAS — убрать guard в `codeql.yml`/`dependency-review.yml`.
-- **ZAP-скан**: первый прогон проверить вручную (`workflow_dispatch`) — endpoint'ы API требуют
-  аутентификации, baseline-скан работает без cookie, часть правил (cookie flags) может не отработать;
-  ложные срабатывания после первого прогона складывать в `.zap/rules.tsv` (`rules_file_name`), при желании
-  включить `fail_action: true` и добавить `-I` в `cmd_options`.
+- **ZAP-скан**: первый ручной прогон (`workflow_dispatch`) выполнен успешно 02.10.2026 — High 0 / Medium 1 /
+  Low 2 / Info 5 (разбор и фиксы: §3.6). Ложные срабатывания складывать в `.zap/rules.tsv` (формат с табами,
+  `rules_file_name` уже подключён); при желании включить `fail_action: true` и добавить `-I` в `cmd_options`.
+  Отчётный `results.sarif` пришёл пустым (`results: []`) — алерты брать из `report_md.md`/`report_json.json`.
 - **Gitleaks**: v2 бесплатен для user-аккаунтов; `fast-iq` — User (не Org), лицензия не нужна.
 - **`artifacts/mockup-sandbox/src/.generated/mockup-components.ts`** — tracked-файл, который
   перегенерируется при каждом `vite build` mockup-sandbox (и становится «грязным» в git status).

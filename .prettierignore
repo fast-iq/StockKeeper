@@ -14,3 +14,9 @@ yarn.lock
 .agents
 .cache
 coverage
+
+# ZAP scan reports
+results.sarif
+report_html.html
+report_json.json
+report_md.md
