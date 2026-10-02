@@ -1,4 +1,6 @@
-- [Codegen overwrites api-zod index.ts](codegen-api-zod-index.md) — codegen must run the full script (orval + postprocess); postprocess restores `lib/api-zod/src/index.ts` to only export `./generated/api`, bare orval does not.
-- [Orval and js-yaml compatibility](orval-js-yaml-compat.md) — js-yaml security override can break Orval's default ESM import; codegen verified working 2026-10-02, re-check after upgrading orval/js-yaml overrides.
+- [Codegen exports](codegen-api-zod-index.md) — run the full codegen script with postprocess; bare Orval does not preserve the required api-zod exports.
+- [Orval and js-yaml compatibility](orval-js-yaml-compat.md) — security overrides can break Orval's ESM import; re-check codegen after upgrading Orval or js-yaml.
 - [Workspace package installation](workspace-package-installation.md) — package installs must target the workspace package, not the monorepo root.
 - [Google OAuth preview origin](google-oauth-preview-origin.md) — appPreview runs on localhost and can trigger a false origin-not-allowed error for Google.
+- [GitHub и AGENTS.md](github-source-of-truth.md) — перед каждой задачей проверять актуальную версию GitHub и AGENTS.md; при изменениях проекта обновлять AGENTS.md.
+- [Replit pnpm launcher](replit-pnpm-launcher.md) — use Corepack for pinned pnpm; the system launcher's automatic version manager can recurse before app startup.

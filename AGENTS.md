@@ -8,6 +8,11 @@
 > 2. **Перед внесением правок** — перечитать AGENTS.md ещё раз: после pull коллеги могли добавить
 >    пункты/инварианты, и опираться надо на свежую версию памятки, а не на прочитанную в начале сессии.
 > 3. После правок — прогонять «Команды проверки». Ничего из перечисленного ниже не ломать.
+> 4. Перед каждой задачей проверять актуальную ветку GitHub: пользователь дорабатывает приложение
+>    там. Если `git pull` недоступен, синхронизировать проверенный снимок через интеграцию или архив;
+>    не продолжать на устаревших исходниках и не затирать локальные правки/пользовательские загрузки.
+> 5. При собственных изменениях проекта обновлять AGENTS.md в той же сессии: изменения,
+>    инварианты и результаты проверок.
 
 ---
 
@@ -36,6 +41,10 @@ pnpm audit --audit-level=high   # No known vulnerabilities found
   `"packageManager": "pnpm@10.34.6"` — по нему же работает `pnpm/action-setup` в CI).
 - E2E/smoke-скрипты живут во `%TEMP%\opencode\` (не в репо) и при необходимости пересоздаются: см. раздел 6.
 
+В Replit/Linux Node.js и pnpm доступны в PATH. Команды проверки те же, без Windows-настройки
+PATH и `Set-Location`, но запускать как `corepack pnpm …` для версии из `packageManager`.
+После синхронизации зависимостей сохранять версии из lockfile.
+
 ## 2. Инварианты (что нельзя ломать)
 
 1. **CORS**: опция `origin` должна быть **callback-стиля**:
@@ -50,7 +59,11 @@ pnpm audit --audit-level=high   # No known vulnerabilities found
    `sid varchar(255) PK`, `sess json`, `expire timestamp(6)`, индекс `session_expire_idx`) и создаётся
    `pnpm --filter @workspace/db run push`. `createTableIfMissing: false` в PgStore — НЕ включать.
    Миграций нет: схема остальных таблиц — только drizzle-kit push.
-8. **`SESSION_SECRET` обязателен** (сервер падает без него), `DATABASE_URL` приходит только как секрет в Replit — `.env`/секции `database` в репо не создавать.
+8. **`SESSION_SECRET` обязателен** (сервер падает без него). `DATABASE_URL` управляется Replit:
+   не перезаписывать его для внешней БД. Для своего PostgreSQL использовать секрет `EXTERNAL_DB_URL`;
+   runtime pool и drizzle-kit выбирают `EXTERNAL_DB_URL ?? DATABASE_URL` одинаково.
+   Если обе переменные отсутствуют или выбранная строка пустая — явная ошибка, без скрытого
+   переключения на другую БД. `.env`/секции `database` в репо не создавать.
 9. **`X-Frame-Options` не ставить** (может сломать iframe-превью Replit). Добавлен только `X-Content-Type-Options: nosniff`.
 10. **`minimumReleaseAge: 1440`** в `pnpm-workspace.yaml` — пакеты младше 24 ч не встанут; не удалять и не «чинить» добавлением в `minimumReleaseAgeExclude` без явного решения пользователя.
 11. Cookie: `secure: isProduction`, `sameSite: production → "none"`, `trust proxy = 1` — не менять без проверки.
@@ -77,6 +90,11 @@ pnpm audit --audit-level=high   # No known vulnerabilities found
 17. **Отчёты ZAP не коммитить**: `results.sarif`, `report_html.html`, `report_json.json`, `report_md.md`
     в `.gitignore` и `.prettierignore` (prettier не парсит отчётный html → `format:check` падает exit 2).
     `results.sarif` при этом пустой (`results: []`) — источник истины для алертов = `report_md.md`/`report_json.json`.
+18. **Версия pnpm в Replit**: команды сервисов и postBuild запускаются через `corepack pnpm`,
+    чтобы использовать закреплённую версию, не системный launcher. В `.npmrc`
+    `manage-package-manager-versions=false` отключает только внутренний менеджер версий pnpm:
+    системный launcher в Replit рекурсивно запускал `pnpm add pnpm@…` и падал до старта серверов.
+    Corepack и `pnpm/action-setup` по-прежнему используют `packageManager` из `package.json`.
 
 ## 3. Изменения (проблема → фикс → файлы)
 
@@ -207,6 +225,42 @@ exit code. С `true` фильтруется лишь `report_json.json` (md/html
 **Четвёртый прогон (после фикса, 02.10.2026, run 37046631099 @ `b7f5cc7`): High 0 / Medium 0 /
 Low 0 / Informational 0**, `alerts: []` — отчёт полностью чистый (Insights-статистика внизу отчёта —
 не алерты).
+
+### 3.7 Внешний PostgreSQL в Replit (02.10.2026)
+
+- Перед правками импортирован архив актуальной ветки GitHub `main`: все 267 файлов
+  проверены по Git blob SHA и совпали с ранее полученным деревом GitHub.
+  Пользовательские загрузки и локальная настройка окружения `.replit` сохранены.
+- `lib/db/src/index.ts` и `lib/db/drizzle.config.ts`: приоритет `EXTERNAL_DB_URL`,
+  затем `DATABASE_URL`. Один и тот же URL используется приложением, сессиями (общий pool)
+  и drizzle-kit. Секреты не изменяются и не выводятся.
+- Для Production достаточно задать `EXTERNAL_DB_URL` только в Production Secrets;
+  Development без этого секрета продолжит использовать управляемую БД Replit.
+- Автоматического переноса данных и изменения схемы внешней БД нет.
+  `push` меняет схему выбранной БД: запускать отдельно и осознанно, без `push-force`
+  для Production.
+- Проверки выбора URL: внешняя строка при наличии обеих переменных; только внешняя;
+  только управляемая; отсутствие обеих; пустая внешняя строка.
+  Все пять сценариев проверены для runtime pool и drizzle-kit на синтетических URL,
+  без подключения к реальным БД.
+- `eslint.config.mjs`: из lint исключены только служебные каталоги Replit `.local/**`
+  (шаблоны инструментов ассистента) и `.cache/**` (кэш Corepack).
+  Иначе `eslint .` проверяет чужие служебные файлы, которых нет в GitHub/CI;
+  правила для исходников приложения не изменены.
+- Сервисы в трёх `artifacts/*/.replit-artifact/artifact.toml` и postBuild в `.replit`
+  запускают pnpm через Corepack. `.npmrc` отключает рекурсивный менеджер версий pnpm.
+  `packageManager` и lockfile сохранены без изменения версий зависимостей.
+- Результаты проверки в Replit: форматирование и lint — без ошибок/предупреждений;
+  тесты Google Auth — 7/7; typecheck и сборка всех пакетов — успешно;
+  audit — известных уязвимостей нет. Проверки URL описаны выше.
+- Проверка Development обнаружила отсутствие `session`. После подтверждения выбора
+  управляемого `DATABASE_URL` выполнен `push --verbose` без `--force`:
+  только `CREATE TABLE session` и `CREATE INDEX session_expire_idx`, без изменений
+  остальных таблиц. Проверены сохранение, чтение и удаление временной тестовой сессии.
+  Production и внешняя БД не изменялись.
+- Все три сервиса запущены; `/api/healthz` — 200, `/api/auth/me` без сессии — 401,
+  страница входа отображается. Соединение с управляемой Development-БД проверено.
+  Подключение к внешней Production-БД необходимо подтвердить после публикации.
 
 ## 4. Итоги верификации (02.10.2026)
 

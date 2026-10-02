@@ -1,8 +1,12 @@
 import { defineConfig } from "drizzle-kit";
 import path from "path";
 
-if (!process.env.DATABASE_URL) {
-  throw new Error("DATABASE_URL, ensure the database is provisioned");
+const databaseUrl = process.env.EXTERNAL_DB_URL ?? process.env.DATABASE_URL;
+
+if (!databaseUrl) {
+  throw new Error(
+    "EXTERNAL_DB_URL or DATABASE_URL must be set. Configure a PostgreSQL connection.",
+  );
 }
 
 export default defineConfig({
@@ -12,6 +16,6 @@ export default defineConfig({
     .join("/"),
   dialect: "postgresql",
   dbCredentials: {
-    url: process.env.DATABASE_URL,
+    url: databaseUrl,
   },
 });

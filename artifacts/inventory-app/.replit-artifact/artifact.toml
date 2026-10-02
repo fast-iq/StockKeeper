@@ -15,10 +15,10 @@ paths = [ "/" ]
 localPort = 24449
 
 [services.development]
-run = "pnpm --filter @workspace/inventory-app run dev"
+run = "corepack pnpm --filter @workspace/inventory-app run dev"
 
 [services.production]
-build = [ "pnpm", "--filter", "@workspace/inventory-app", "run", "build" ]
+build = [ "corepack", "pnpm", "--filter", "@workspace/inventory-app", "run", "build" ]
 publicDir = "artifacts/inventory-app/dist/public"
 serve = "static"
 
