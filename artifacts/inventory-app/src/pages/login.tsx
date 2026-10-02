@@ -11,7 +11,14 @@ import { useLocation, Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Package2, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
@@ -31,7 +38,9 @@ export default function LoginPage() {
   const loginMutation = useLogin();
   const registerMutation = useRegister();
   const googleLoginMutation = useGoogleLogin();
-  const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID as string | undefined;
+  const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID as
+    | string
+    | undefined;
   const loginFormRef = useRef<HTMLFormElement>(null);
   const [googleButtonWidth, setGoogleButtonWidth] = useState(400);
 
@@ -81,13 +90,21 @@ export default function LoginPage() {
           if (lang === "ru" || lang === "en") {
             setLanguage(lang);
           }
-          toast({ title: t("auth.welcomeBack"), description: t("auth.successLogin") });
+          toast({
+            title: t("auth.welcomeBack"),
+            description: t("auth.successLogin"),
+          });
           setLocation("/dashboard");
         },
         onError: (err: any) => {
-          toast({ title: t("auth.loginFailed"), description: err?.response?.data?.error || t("auth.invalidCredentials"), variant: "destructive" });
+          toast({
+            title: t("auth.loginFailed"),
+            description:
+              err?.response?.data?.error || t("auth.invalidCredentials"),
+            variant: "destructive",
+          });
         },
-      }
+      },
     );
   };
 
@@ -102,13 +119,20 @@ export default function LoginPage() {
       { data: { name, email, password } },
       {
         onSuccess: () => {
-          toast({ title: t("auth.accountCreated"), description: t("auth.successRegister") });
+          toast({
+            title: t("auth.accountCreated"),
+            description: t("auth.successRegister"),
+          });
           setLocation("/dashboard");
         },
         onError: (err: any) => {
-          toast({ title: t("auth.registerFailed"), description: err?.response?.data?.error || t("auth.couldNotCreate"), variant: "destructive" });
+          toast({
+            title: t("auth.registerFailed"),
+            description: err?.response?.data?.error || t("auth.couldNotCreate"),
+            variant: "destructive",
+          });
         },
-      }
+      },
     );
   };
 
@@ -121,13 +145,17 @@ export default function LoginPage() {
           if (lang === "ru" || lang === "en") {
             setLanguage(lang);
           }
-          toast({ title: t("auth.welcomeBack"), description: t("auth.successGoogleLogin") });
+          toast({
+            title: t("auth.welcomeBack"),
+            description: t("auth.successGoogleLogin"),
+          });
           setLocation("/dashboard");
         },
         onError: (err: any) => {
           toast({
             title: t("auth.googleLoginFailed"),
-            description: err?.response?.data?.error || t("auth.googleLoginError"),
+            description:
+              err?.response?.data?.error || t("auth.googleLoginError"),
             variant: "destructive",
           });
         },
@@ -149,32 +177,68 @@ export default function LoginPage() {
             </div>
           </div>
           <div className="text-center space-y-1">
-            <CardTitle className="text-2xl font-bold tracking-tight font-mono">{t("app.name")}</CardTitle>
+            <CardTitle className="text-2xl font-bold tracking-tight font-mono">
+              {t("app.name")}
+            </CardTitle>
             <CardDescription>{t("app.tagline")}</CardDescription>
           </div>
         </CardHeader>
         <CardContent>
-          <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "login" | "register")} className="w-full">
+          <Tabs
+            value={activeTab}
+            onValueChange={(v) => setActiveTab(v as "login" | "register")}
+            className="w-full"
+          >
             <TabsList className="grid w-full grid-cols-2 mb-6">
               <TabsTrigger value="login">{t("auth.login")}</TabsTrigger>
               <TabsTrigger value="register">{t("auth.register")}</TabsTrigger>
             </TabsList>
             <TabsContent value="login">
-              <form ref={loginFormRef} onSubmit={handleLogin} className="space-y-4">
+              <form
+                ref={loginFormRef}
+                onSubmit={handleLogin}
+                className="space-y-4"
+              >
                 <div className="space-y-2">
                   <Label htmlFor="email">{t("auth.email")}</Label>
-                  <Input id="email" name="email" type="email" autoComplete="email" placeholder={t("auth.emailPlaceholder")} required disabled={loginMutation.isPending} className="bg-background/50 focus:bg-background" />
+                  <Input
+                    id="email"
+                    name="email"
+                    type="email"
+                    autoComplete="email"
+                    placeholder={t("auth.emailPlaceholder")}
+                    required
+                    disabled={loginMutation.isPending}
+                    className="bg-background/50 focus:bg-background"
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="password">{t("auth.password")}</Label>
-                  <Input id="password" name="password" type="password" autoComplete="current-password" required disabled={loginMutation.isPending} className="bg-background/50 focus:bg-background" />
+                  <Input
+                    id="password"
+                    name="password"
+                    type="password"
+                    autoComplete="current-password"
+                    required
+                    disabled={loginMutation.isPending}
+                    className="bg-background/50 focus:bg-background"
+                  />
                 </div>
-                <Button type="submit" className="w-full font-medium" disabled={loginMutation.isPending}>
-                  {loginMutation.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
+                <Button
+                  type="submit"
+                  className="w-full font-medium"
+                  disabled={loginMutation.isPending}
+                >
+                  {loginMutation.isPending ? (
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  ) : null}
                   {t("auth.accessWorkspace")}
                 </Button>
                 <div className="text-center">
-                  <Link href="/forgot-password" className="text-xs text-muted-foreground hover:text-foreground transition-colors">
+                  <Link
+                    href="/forgot-password"
+                    className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+                  >
                     {t("auth.forgotPassword")}
                   </Link>
                 </div>
@@ -185,10 +249,14 @@ export default function LoginPage() {
                         <span className="w-full border-t border-border" />
                       </div>
                       <div className="relative flex justify-center text-xs uppercase">
-                        <span className="bg-card px-3 text-muted-foreground">{t("auth.orContinueWith")}</span>
+                        <span className="bg-card px-3 text-muted-foreground">
+                          {t("auth.orContinueWith")}
+                        </span>
                       </div>
                     </div>
-                    <div className={`w-full ${googleLoginMutation.isPending ? "pointer-events-none opacity-60" : ""}`}>
+                    <div
+                      className={`w-full ${googleLoginMutation.isPending ? "pointer-events-none opacity-60" : ""}`}
+                    >
                       <GoogleLogin
                         onSuccess={(response) => {
                           if (response.credential) {
@@ -215,18 +283,50 @@ export default function LoginPage() {
               <form onSubmit={handleRegister} className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="name">{t("auth.fullName")}</Label>
-                  <Input id="name" name="name" placeholder={t("auth.namePlaceholder")} required disabled={registerMutation.isPending} className="bg-background/50 focus:bg-background" />
+                  <Input
+                    id="name"
+                    name="name"
+                    placeholder={t("auth.namePlaceholder")}
+                    required
+                    disabled={registerMutation.isPending}
+                    className="bg-background/50 focus:bg-background"
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="register-email">{t("auth.email")}</Label>
-                  <Input id="register-email" name="email" type="email" autoComplete="email" placeholder={t("auth.emailPlaceholder")} required disabled={registerMutation.isPending} className="bg-background/50 focus:bg-background" />
+                  <Input
+                    id="register-email"
+                    name="email"
+                    type="email"
+                    autoComplete="email"
+                    placeholder={t("auth.emailPlaceholder")}
+                    required
+                    disabled={registerMutation.isPending}
+                    className="bg-background/50 focus:bg-background"
+                  />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="register-password">{t("auth.password")}</Label>
-                  <Input id="register-password" name="password" type="password" autoComplete="new-password" required disabled={registerMutation.isPending} className="bg-background/50 focus:bg-background" />
+                  <Label htmlFor="register-password">
+                    {t("auth.password")}
+                  </Label>
+                  <Input
+                    id="register-password"
+                    name="password"
+                    type="password"
+                    autoComplete="new-password"
+                    required
+                    disabled={registerMutation.isPending}
+                    className="bg-background/50 focus:bg-background"
+                  />
                 </div>
-                <Button type="submit" className="w-full font-medium" disabled={registerMutation.isPending}>
-                  {registerMutation.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
+                <Button
+                  type="submit"
+                  className="w-full font-medium"
+                  disabled={registerMutation.isPending}
+                >
+                  {registerMutation.isPending ? (
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  ) : null}
                   {t("auth.createWorkspace")}
                 </Button>
               </form>
@@ -234,7 +334,9 @@ export default function LoginPage() {
           </Tabs>
         </CardContent>
         <CardFooter className="flex justify-center border-t border-border/50 pt-6">
-          <p className="text-xs text-muted-foreground font-mono">{t("app.name")} {t("app.version")}</p>
+          <p className="text-xs text-muted-foreground font-mono">
+            {t("app.name")} {t("app.version")}
+          </p>
         </CardFooter>
       </Card>
     </div>

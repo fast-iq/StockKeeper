@@ -4,8 +4,22 @@ import { useLocation, Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Package2, Loader2, ArrowLeft, CheckCircle, Eye, EyeOff } from "lucide-react";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  Package2,
+  Loader2,
+  ArrowLeft,
+  CheckCircle,
+  Eye,
+  EyeOff,
+} from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 export default function ResetPasswordPage() {
@@ -28,7 +42,11 @@ export default function ResetPasswordPage() {
       return;
     }
     if (password.length < 8) {
-      toast({ title: "Пароль слишком короткий", description: "Минимум 8 символов", variant: "destructive" });
+      toast({
+        title: "Пароль слишком короткий",
+        description: "Минимум 8 символов",
+        variant: "destructive",
+      });
       return;
     }
 
@@ -42,11 +60,13 @@ export default function ResetPasswordPage() {
         onError: (err: any) => {
           toast({
             title: "Ошибка",
-            description: err?.response?.data?.error || "Ссылка недействительна или истекла",
+            description:
+              err?.response?.data?.error ||
+              "Ссылка недействительна или истекла",
             variant: "destructive",
           });
         },
-      }
+      },
     );
   };
 
@@ -55,8 +75,13 @@ export default function ResetPasswordPage() {
       <div className="min-h-screen bg-background flex items-center justify-center p-4">
         <Card className="w-full max-w-md border-border/50 bg-card/80 backdrop-blur-xl">
           <CardContent className="pt-6 text-center">
-            <p className="text-muted-foreground text-sm">Ссылка недействительна. Запросите новую.</p>
-            <Link href="/forgot-password" className="mt-4 inline-block text-sm text-primary hover:underline">
+            <p className="text-muted-foreground text-sm">
+              Ссылка недействительна. Запросите новую.
+            </p>
+            <Link
+              href="/forgot-password"
+              className="mt-4 inline-block text-sm text-primary hover:underline"
+            >
               Запросить ссылку
             </Link>
           </CardContent>
@@ -79,7 +104,9 @@ export default function ResetPasswordPage() {
             </div>
           </div>
           <div className="text-center space-y-1">
-            <CardTitle className="text-2xl font-bold tracking-tight font-mono">STOCKKEEPER</CardTitle>
+            <CardTitle className="text-2xl font-bold tracking-tight font-mono">
+              STOCKKEEPER
+            </CardTitle>
             <CardDescription>
               {done ? "Пароль изменён" : "Новый пароль"}
             </CardDescription>
@@ -118,7 +145,11 @@ export default function ResetPasswordPage() {
                     onClick={() => setShowPassword((v) => !v)}
                     tabIndex={-1}
                   >
-                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    {showPassword ? (
+                      <EyeOff className="w-4 h-4" />
+                    ) : (
+                      <Eye className="w-4 h-4" />
+                    )}
                   </button>
                 </div>
               </div>
@@ -141,12 +172,22 @@ export default function ResetPasswordPage() {
                     onClick={() => setShowConfirm((v) => !v)}
                     tabIndex={-1}
                   >
-                    {showConfirm ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    {showConfirm ? (
+                      <EyeOff className="w-4 h-4" />
+                    ) : (
+                      <Eye className="w-4 h-4" />
+                    )}
                   </button>
                 </div>
               </div>
-              <Button type="submit" className="w-full font-medium" disabled={resetMutation.isPending}>
-                {resetMutation.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
+              <Button
+                type="submit"
+                className="w-full font-medium"
+                disabled={resetMutation.isPending}
+              >
+                {resetMutation.isPending ? (
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                ) : null}
                 Сохранить новый пароль
               </Button>
             </form>
@@ -154,7 +195,10 @@ export default function ResetPasswordPage() {
         </CardContent>
 
         <CardFooter className="flex justify-center border-t border-border/50 pt-6">
-          <Link href="/login" className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors">
+          <Link
+            href="/login"
+            className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+          >
             <ArrowLeft className="w-3.5 h-3.5" />
             Вернуться ко входу
           </Link>

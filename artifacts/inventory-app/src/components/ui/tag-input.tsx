@@ -9,9 +9,19 @@ interface TagInputProps {
   className?: string;
 }
 
-export function TagInput({ defaultValue, name, placeholder, className }: TagInputProps) {
+export function TagInput({
+  defaultValue,
+  name,
+  placeholder,
+  className,
+}: TagInputProps) {
   const [tags, setTags] = useState<string[]>(
-    defaultValue ? defaultValue.split(",").map((t) => t.trim()).filter(Boolean) : []
+    defaultValue
+      ? defaultValue
+          .split(",")
+          .map((t) => t.trim())
+          .filter(Boolean)
+      : [],
   );
   const [input, setInput] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
@@ -41,7 +51,7 @@ export function TagInput({ defaultValue, name, placeholder, className }: TagInpu
     <div
       className={cn(
         "flex flex-wrap gap-1.5 min-h-10 p-2 rounded-md border border-input bg-background cursor-text transition-colors focus-within:border-ring",
-        className
+        className,
       )}
       onClick={() => inputRef.current?.focus()}
     >

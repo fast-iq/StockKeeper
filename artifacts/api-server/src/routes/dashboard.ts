@@ -48,70 +48,81 @@ router.get("/dashboard/stats", requireAuth, async (req, res): Promise<void> => {
   });
 });
 
-router.get("/dashboard/recent", requireAuth, async (req, res): Promise<void> => {
-  const queryParsed = GetRecentItemsQueryParams.safeParse(req.query);
-  const limit = queryParsed.success && queryParsed.data.limit ? queryParsed.data.limit : 10;
+router.get(
+  "/dashboard/recent",
+  requireAuth,
+  async (req, res): Promise<void> => {
+    const queryParsed = GetRecentItemsQueryParams.safeParse(req.query);
+    const limit =
+      queryParsed.success && queryParsed.data.limit
+        ? queryParsed.data.limit
+        : 10;
 
-  const userId = req.session.userId!;
+    const userId = req.session.userId!;
 
-  const rows = await db
-    .select({
-      id: itemsTable.id,
-      name: itemsTable.name,
-      description: itemsTable.description,
-      quantity: itemsTable.quantity,
-      unit: itemsTable.unit,
-      location: itemsTable.location,
-      sku: itemsTable.sku,
-      barcode: itemsTable.barcode,
-      tags: itemsTable.tags,
-      notes: itemsTable.notes,
-      categoryId: itemsTable.categoryId,
-      userId: itemsTable.userId,
-      createdAt: itemsTable.createdAt,
-      updatedAt: itemsTable.updatedAt,
-      categoryName: categoriesTable.name,
-    })
-    .from(itemsTable)
-    .leftJoin(categoriesTable, eq(itemsTable.categoryId, categoriesTable.id))
-    .where(eq(itemsTable.userId, userId))
-    .orderBy(desc(itemsTable.createdAt))
-    .limit(limit);
+    const rows = await db
+      .select({
+        id: itemsTable.id,
+        name: itemsTable.name,
+        description: itemsTable.description,
+        quantity: itemsTable.quantity,
+        unit: itemsTable.unit,
+        location: itemsTable.location,
+        sku: itemsTable.sku,
+        barcode: itemsTable.barcode,
+        tags: itemsTable.tags,
+        notes: itemsTable.notes,
+        categoryId: itemsTable.categoryId,
+        userId: itemsTable.userId,
+        createdAt: itemsTable.createdAt,
+        updatedAt: itemsTable.updatedAt,
+        categoryName: categoriesTable.name,
+      })
+      .from(itemsTable)
+      .leftJoin(categoriesTable, eq(itemsTable.categoryId, categoriesTable.id))
+      .where(eq(itemsTable.userId, userId))
+      .orderBy(desc(itemsTable.createdAt))
+      .limit(limit);
 
-  res.json(
-    rows.map((r) => ({
-      ...r,
-      categoryName: r.categoryName ?? null,
-      createdAt: r.createdAt.toISOString(),
-      updatedAt: r.updatedAt.toISOString(),
-    })),
-  );
-});
+    res.json(
+      rows.map((r) => ({
+        ...r,
+        categoryName: r.categoryName ?? null,
+        createdAt: r.createdAt.toISOString(),
+        updatedAt: r.updatedAt.toISOString(),
+      })),
+    );
+  },
+);
 
-router.get("/dashboard/category-counts", requireAuth, async (req, res): Promise<void> => {
-  const userId = req.session.userId!;
+router.get(
+  "/dashboard/category-counts",
+  requireAuth,
+  async (req, res): Promise<void> => {
+    const userId = req.session.userId!;
 
-  const rows = await db
-    .select({
-      categoryId: categoriesTable.id,
-      categoryName: categoriesTable.name,
-      color: categoriesTable.color,
-      itemCount: count(itemsTable.id),
-    })
-    .from(categoriesTable)
-    .leftJoin(itemsTable, eq(itemsTable.categoryId, categoriesTable.id))
-    .where(eq(categoriesTable.userId, userId))
-    .groupBy(categoriesTable.id, categoriesTable.name, categoriesTable.color)
-    .orderBy(desc(count(itemsTable.id)));
+    const rows = await db
+      .select({
+        categoryId: categoriesTable.id,
+        categoryName: categoriesTable.name,
+        color: categoriesTable.color,
+        itemCount: count(itemsTable.id),
+      })
+      .from(categoriesTable)
+      .leftJoin(itemsTable, eq(itemsTable.categoryId, categoriesTable.id))
+      .where(eq(categoriesTable.userId, userId))
+      .groupBy(categoriesTable.id, categoriesTable.name, categoriesTable.color)
+      .orderBy(desc(count(itemsTable.id)));
 
-  res.json(
-    rows.map((r) => ({
-      categoryId: r.categoryId,
-      categoryName: r.categoryName,
-      color: r.color,
-      itemCount: Number(r.itemCount),
-    })),
-  );
-});
+    res.json(
+      rows.map((r) => ({
+        categoryId: r.categoryId,
+        categoryName: r.categoryName,
+        color: r.color,
+        itemCount: Number(r.itemCount),
+      })),
+    );
+  },
+);
 
 export default router;

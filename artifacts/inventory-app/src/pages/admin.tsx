@@ -7,7 +7,14 @@ import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { ru as ruLocale, enUS } from "date-fns/locale";
 import i18n from "@/i18n";
-import { Shield, Users, Globe, Crown, ChevronDown, Loader2 } from "lucide-react";
+import {
+  Shield,
+  Users,
+  Globe,
+  Crown,
+  ChevronDown,
+  Loader2,
+} from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import {
   DropdownMenu,
@@ -29,14 +36,16 @@ type AdminUser = {
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 
 async function fetchAdminUsers(): Promise<AdminUser[]> {
-  const res = await fetch(`${BASE}/api/admin/users`, { credentials: "include" });
+  const res = await fetch(`${BASE}/api/admin/users`, {
+    credentials: "include",
+  });
   if (!res.ok) throw new Error("Failed to fetch users");
   return res.json();
 }
 
 async function patchAdminUser(
   id: number,
-  updates: { language?: string; isAdmin?: boolean }
+  updates: { language?: string; isAdmin?: boolean },
 ): Promise<AdminUser> {
   const res = await fetch(`${BASE}/api/admin/users/${id}`, {
     method: "PATCH",
@@ -70,7 +79,9 @@ function useAdminUsers() {
   };
 
   const updateUser = (updated: AdminUser) => {
-    setUsers((prev) => prev?.map((u) => (u.id === updated.id ? updated : u)) ?? null);
+    setUsers(
+      (prev) => prev?.map((u) => (u.id === updated.id ? updated : u)) ?? null,
+    );
   };
 
   return { users, loading, error, load, updateUser };
@@ -115,7 +126,11 @@ export default function AdminPage() {
       updateUser(updated);
       toast({ title: t("admin.languageUpdated"), description: updated.name });
     } catch (e: any) {
-      toast({ title: t("admin.updateFailed"), description: e.message, variant: "destructive" });
+      toast({
+        title: t("admin.updateFailed"),
+        description: e.message,
+        variant: "destructive",
+      });
     } finally {
       setUpdating(null);
     }
@@ -131,7 +146,11 @@ export default function AdminPage() {
         description: updated.name,
       });
     } catch (e: any) {
-      toast({ title: t("admin.updateFailed"), description: e.message, variant: "destructive" });
+      toast({
+        title: t("admin.updateFailed"),
+        description: e.message,
+        variant: "destructive",
+      });
     } finally {
       setUpdating(null);
     }
@@ -149,9 +168,13 @@ export default function AdminPage() {
               <div className="w-8 h-8 rounded-md bg-primary/20 flex items-center justify-center">
                 <Shield className="w-4 h-4 text-primary" />
               </div>
-              <h1 className="text-2xl font-bold tracking-tight font-mono">{t("admin.title")}</h1>
+              <h1 className="text-2xl font-bold tracking-tight font-mono">
+                {t("admin.title")}
+              </h1>
             </div>
-            <p className="text-sm text-muted-foreground">{t("admin.subtitle")}</p>
+            <p className="text-sm text-muted-foreground">
+              {t("admin.subtitle")}
+            </p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
@@ -195,11 +218,15 @@ export default function AdminPage() {
               <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
                 {t("admin.userList")}
               </h2>
-              {loading && <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />}
+              {loading && (
+                <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+              )}
             </div>
 
             {error && (
-              <div className="px-6 py-8 text-center text-destructive text-sm">{error}</div>
+              <div className="px-6 py-8 text-center text-destructive text-sm">
+                {error}
+              </div>
             )}
 
             {!loading && !error && users && users.length === 0 && (
@@ -268,7 +295,10 @@ export default function AdminPage() {
                               {t("admin.roleAdmin")}
                             </Badge>
                           ) : (
-                            <Badge variant="outline" className="font-mono text-xs text-muted-foreground">
+                            <Badge
+                              variant="outline"
+                              className="font-mono text-xs text-muted-foreground"
+                            >
                               {t("admin.roleUser")}
                             </Badge>
                           )}
@@ -293,12 +323,16 @@ export default function AdminPage() {
                               {(["ru", "en", "auto"] as const).map((lang) => (
                                 <DropdownMenuItem
                                   key={lang}
-                                  onClick={() => handleLanguageChange(user.id, lang)}
+                                  onClick={() =>
+                                    handleLanguageChange(user.id, lang)
+                                  }
                                   className={`font-mono text-sm gap-2 ${user.language === lang ? "text-primary font-semibold" : ""}`}
                                 >
                                   {LANG_FLAGS[lang]} {LANG_LABELS[lang]}
                                   {user.language === lang && (
-                                    <span className="ml-auto text-xs text-primary">✓</span>
+                                    <span className="ml-auto text-xs text-primary">
+                                      ✓
+                                    </span>
                                   )}
                                 </DropdownMenuItem>
                               ))}
@@ -309,7 +343,9 @@ export default function AdminPage() {
                           {user.itemCount}
                         </td>
                         <td className="px-6 py-4 text-muted-foreground text-xs">
-                          {format(new Date(user.createdAt), "PP", { locale: dateLocale })}
+                          {format(new Date(user.createdAt), "PP", {
+                            locale: dateLocale,
+                          })}
                         </td>
                         <td className="px-6 py-4 text-right">
                           <DropdownMenu>
@@ -323,7 +359,9 @@ export default function AdminPage() {
                             <DropdownMenuContent align="end">
                               {!user.isAdmin ? (
                                 <DropdownMenuItem
-                                  onClick={() => handleAdminToggle(user.id, true)}
+                                  onClick={() =>
+                                    handleAdminToggle(user.id, true)
+                                  }
                                   className="gap-2 text-sm"
                                 >
                                   <Crown className="w-3.5 h-3.5 text-primary" />
@@ -331,7 +369,9 @@ export default function AdminPage() {
                                 </DropdownMenuItem>
                               ) : (
                                 <DropdownMenuItem
-                                  onClick={() => handleAdminToggle(user.id, false)}
+                                  onClick={() =>
+                                    handleAdminToggle(user.id, false)
+                                  }
                                   disabled={user.id === myId}
                                   className="gap-2 text-sm text-destructive focus:text-destructive"
                                 >

@@ -8,10 +8,17 @@ export const locationsTable = pgTable("locations", {
   name: text("name").notNull(),
   description: text("description"),
   icon: text("icon").default("warehouse"),
-  userId: integer("user_id").notNull().references(() => usersTable.id, { onDelete: "cascade" }),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  userId: integer("user_id")
+    .notNull()
+    .references(() => usersTable.id, { onDelete: "cascade" }),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
 });
 
-export const insertLocationSchema = createInsertSchema(locationsTable).omit({ id: true, createdAt: true });
+export const insertLocationSchema = createInsertSchema(locationsTable).omit({
+  id: true,
+  createdAt: true,
+});
 export type InsertLocation = z.infer<typeof insertLocationSchema>;
 export type StorageLocation = typeof locationsTable.$inferSelect;

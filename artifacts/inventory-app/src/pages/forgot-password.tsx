@@ -4,7 +4,14 @@ import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Package2, Loader2, ArrowLeft, MailCheck } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
@@ -25,9 +32,13 @@ export default function ForgotPasswordPage() {
           setSent(true);
         },
         onError: () => {
-          toast({ title: "Ошибка", description: "Не удалось отправить запрос", variant: "destructive" });
+          toast({
+            title: "Ошибка",
+            description: "Не удалось отправить запрос",
+            variant: "destructive",
+          });
         },
-      }
+      },
     );
   };
 
@@ -45,7 +56,9 @@ export default function ForgotPasswordPage() {
             </div>
           </div>
           <div className="text-center space-y-1">
-            <CardTitle className="text-2xl font-bold tracking-tight font-mono">STOCKKEEPER</CardTitle>
+            <CardTitle className="text-2xl font-bold tracking-tight font-mono">
+              STOCKKEEPER
+            </CardTitle>
             <CardDescription>
               {sent ? "Ссылка отправлена" : "Восстановление пароля"}
             </CardDescription>
@@ -59,17 +72,21 @@ export default function ForgotPasswordPage() {
                 <MailCheck className="w-7 h-7 text-green-500" />
               </div>
               <p className="text-sm text-muted-foreground leading-relaxed">
-                Если адрес <span className="text-foreground font-medium">{sentEmail}</span> зарегистрирован,
-                на него была отправлена ссылка для сброса пароля.
+                Если адрес{" "}
+                <span className="text-foreground font-medium">{sentEmail}</span>{" "}
+                зарегистрирован, на него была отправлена ссылка для сброса
+                пароля.
               </p>
               <p className="text-xs text-muted-foreground">
-                Ссылка действительна 1 час. Проверьте папку «Спам», если письмо не пришло.
+                Ссылка действительна 1 час. Проверьте папку «Спам», если письмо
+                не пришло.
               </p>
             </div>
           ) : (
             <form onSubmit={handleSubmit} className="space-y-4">
               <p className="text-sm text-muted-foreground">
-                Введите email вашей учётной записи — мы отправим ссылку для сброса пароля.
+                Введите email вашей учётной записи — мы отправим ссылку для
+                сброса пароля.
               </p>
               <div className="space-y-2">
                 <Label htmlFor="email">Эл. почта</Label>
@@ -84,8 +101,14 @@ export default function ForgotPasswordPage() {
                   autoComplete="email"
                 />
               </div>
-              <Button type="submit" className="w-full font-medium" disabled={forgotMutation.isPending}>
-                {forgotMutation.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
+              <Button
+                type="submit"
+                className="w-full font-medium"
+                disabled={forgotMutation.isPending}
+              >
+                {forgotMutation.isPending ? (
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                ) : null}
                 Отправить ссылку
               </Button>
             </form>
@@ -93,7 +116,10 @@ export default function ForgotPasswordPage() {
         </CardContent>
 
         <CardFooter className="flex justify-center border-t border-border/50 pt-6">
-          <Link href="/login" className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors">
+          <Link
+            href="/login"
+            className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+          >
             <ArrowLeft className="w-3.5 h-3.5" />
             Вернуться ко входу
           </Link>

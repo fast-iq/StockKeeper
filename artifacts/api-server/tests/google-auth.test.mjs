@@ -38,7 +38,10 @@ function createDependencies(overrides = {}) {
 }
 
 test("requires a non-empty Google ID token in the login API body", () => {
-  assert.equal(GoogleLoginBody.safeParse({ idToken: "valid-token" }).success, true);
+  assert.equal(
+    GoogleLoginBody.safeParse({ idToken: "valid-token" }).success,
+    true,
+  );
   assert.equal(GoogleLoginBody.safeParse({ idToken: "" }).success, false);
   assert.equal(GoogleLoginBody.safeParse({}).success, false);
 });
@@ -55,7 +58,11 @@ test("does not call Google or the database when the server client ID is missing"
 test("verifies the credential against the configured audience and creates a normalized user", async () => {
   const { calls, dependencies } = createDependencies();
 
-  const result = await resolveGoogleUser("valid-token", " google-client-id ", dependencies);
+  const result = await resolveGoogleUser(
+    "valid-token",
+    " google-client-id ",
+    dependencies,
+  );
 
   assert.deepEqual(calls.verification, [
     { idToken: "valid-token", audience: "google-client-id" },
@@ -66,13 +73,21 @@ test("verifies the credential against the configured audience and creates a norm
   ]);
   assert.deepEqual(result, {
     status: "authenticated",
-    user: { id: 42, email: "warehouse.user@example.com", name: "Warehouse User" },
+    user: {
+      id: 42,
+      email: "warehouse.user@example.com",
+      name: "Warehouse User",
+    },
     created: true,
   });
 });
 
 test("uses the existing account instead of creating a duplicate", async () => {
-  const existingUser = { id: 7, email: "warehouse.user@example.com", name: "Existing User" };
+  const existingUser = {
+    id: 7,
+    email: "warehouse.user@example.com",
+    name: "Existing User",
+  };
   const { calls, dependencies } = createDependencies({
     findUserByEmail: async (email) => {
       calls.lookups.push(email);
@@ -80,7 +95,11 @@ test("uses the existing account instead of creating a duplicate", async () => {
     },
   });
 
-  const result = await resolveGoogleUser("valid-token", "google-client-id", dependencies);
+  const result = await resolveGoogleUser(
+    "valid-token",
+    "google-client-id",
+    dependencies,
+  );
 
   assert.deepEqual(result, {
     status: "authenticated",
@@ -115,7 +134,11 @@ test("rejects missing or unverified email before accessing accounts", async () =
       verifyIdToken: async () => payload,
     });
 
-    const result = await resolveGoogleUser("valid-token", "google-client-id", dependencies);
+    const result = await resolveGoogleUser(
+      "valid-token",
+      "google-client-id",
+      dependencies,
+    );
 
     assert.deepEqual(result, { status: "email_unverified" });
     assert.deepEqual(calls.lookups, []);
@@ -131,7 +154,11 @@ test("rejects invalid credentials without querying or creating an account", asyn
     },
   });
 
-  const result = await resolveGoogleUser("invalid-token", "google-client-id", dependencies);
+  const result = await resolveGoogleUser(
+    "invalid-token",
+    "google-client-id",
+    dependencies,
+  );
 
   assert.deepEqual(result, {
     status: "invalid_credential",

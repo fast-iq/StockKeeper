@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { db, unitsTable } from "@workspace/db";
-import { eq, isNull, or } from "drizzle-orm";
+import { eq, and, isNull, or } from "drizzle-orm";
 import { requireAuth } from "../middlewares/auth";
 
 const router: IRouter = Router();
@@ -20,7 +20,7 @@ router.get("/units", requireAuth, async (req, res): Promise<void> => {
       name: u.name,
       symbol: u.symbol,
       isCustom: u.userId !== null,
-    }))
+    })),
   );
 });
 
@@ -33,10 +33,19 @@ router.post("/units", requireAuth, async (req, res): Promise<void> => {
 
   const [unit] = await db
     .insert(unitsTable)
-    .values({ name: name.trim(), symbol: symbol.trim(), userId: req.session.userId! })
+    .values({
+      name: name.trim(),
+      symbol: symbol.trim(),
+      userId: req.session.userId!,
+    })
     .returning();
 
-  res.status(201).json({ id: unit.id, name: unit.name, symbol: unit.symbol, isCustom: true });
+  res.status(201).json({
+    id: unit.id,
+    name: unit.name,
+    symbol: unit.symbol,
+    isCustom: true,
+  });
 });
 
 router.delete("/units/:id", requireAuth, async (req, res): Promise<void> => {
@@ -48,10 +57,12 @@ router.delete("/units/:id", requireAuth, async (req, res): Promise<void> => {
 
   const [unit] = await db
     .delete(unitsTable)
-    .where(eq(unitsTable.id, id) as any)
+    .where(
+      and(eq(unitsTable.id, id), eq(unitsTable.userId, req.session.userId!)),
+    )
     .returning();
 
-  if (!unit || unit.userId !== req.session.userId) {
+  if (!unit) {
     res.status(404).json({ error: "Unit not found or not yours" });
     return;
   }

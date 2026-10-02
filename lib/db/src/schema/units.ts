@@ -7,9 +7,13 @@ export const unitsTable = pgTable("units", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
   symbol: text("symbol").notNull(),
-  userId: integer("user_id").references(() => usersTable.id, { onDelete: "cascade" }),
+  userId: integer("user_id").references(() => usersTable.id, {
+    onDelete: "cascade",
+  }),
 });
 
-export const insertUnitSchema = createInsertSchema(unitsTable).omit({ id: true });
+export const insertUnitSchema = createInsertSchema(unitsTable).omit({
+  id: true,
+});
 export type InsertUnit = z.infer<typeof insertUnitSchema>;
 export type Unit = typeof unitsTable.$inferSelect;

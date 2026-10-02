@@ -6,7 +6,14 @@ import { setLanguage } from "@/i18n";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Settings, Globe, User, LockKeyhole, CheckCircle2, Loader2 } from "lucide-react";
+import {
+  Settings,
+  Globe,
+  User,
+  LockKeyhole,
+  CheckCircle2,
+  Loader2,
+} from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useState } from "react";
 import { format } from "date-fns";
@@ -19,7 +26,9 @@ export default function SettingsPage() {
   const { toast } = useToast();
   const { data: user } = useGetMe();
 
-  const currentLang = (i18n.language?.startsWith("ru") ? "ru" : "en") as "en" | "ru";
+  const currentLang = (i18n.language?.startsWith("ru") ? "ru" : "en") as
+    | "en"
+    | "ru";
   const [selectedLang, setSelectedLang] = useState<"en" | "ru">(currentLang);
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -88,14 +97,17 @@ export default function SettingsPage() {
       <AppLayout>
         <div className="flex-1 overflow-y-auto p-4 sm:p-6 md:p-8">
           <div className="mx-auto max-w-2xl space-y-6 sm:space-y-8">
-
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center">
                 <Settings className="w-5 h-5 text-primary" />
               </div>
               <div>
-                <h1 className="text-2xl font-bold tracking-tight">{t("settings.title")}</h1>
-                <p className="text-muted-foreground text-sm mt-0.5">{t("settings.subtitle")}</p>
+                <h1 className="text-2xl font-bold tracking-tight">
+                  {t("settings.title")}
+                </h1>
+                <p className="text-muted-foreground text-sm mt-0.5">
+                  {t("settings.subtitle")}
+                </p>
               </div>
             </div>
 
@@ -106,10 +118,15 @@ export default function SettingsPage() {
                 <h2 className="font-semibold">{t("settings.language")}</h2>
               </div>
               <div className="p-4 space-y-3 sm:p-6">
-                <p className="text-sm text-muted-foreground mb-4">{t("settings.languageDescription")}</p>
+                <p className="text-sm text-muted-foreground mb-4">
+                  {t("settings.languageDescription")}
+                </p>
                 <div className="grid grid-cols-2 gap-3">
                   {(["ru", "en"] as const).map((lang) => {
-                    const label = lang === "ru" ? t("settings.languageRu") : t("settings.languageEn");
+                    const label =
+                      lang === "ru"
+                        ? t("settings.languageRu")
+                        : t("settings.languageEn");
                     const isSelected = selectedLang === lang;
                     return (
                       <button
@@ -122,10 +139,18 @@ export default function SettingsPage() {
                             : "border-border bg-background hover:border-muted-foreground/30 text-muted-foreground"
                         }`}
                       >
-                        <span className="text-2xl">{lang === "ru" ? "🇷🇺" : "🇬🇧"}</span>
+                        <span className="text-2xl">
+                          {lang === "ru" ? "🇷🇺" : "🇬🇧"}
+                        </span>
                         <div>
-                          <div className={`font-medium ${isSelected ? "text-foreground" : ""}`}>{label}</div>
-                          <div className="text-xs text-muted-foreground">{lang === "ru" ? "Русский" : "English"}</div>
+                          <div
+                            className={`font-medium ${isSelected ? "text-foreground" : ""}`}
+                          >
+                            {label}
+                          </div>
+                          <div className="text-xs text-muted-foreground">
+                            {lang === "ru" ? "Русский" : "English"}
+                          </div>
                         </div>
                         {isSelected && (
                           <CheckCircle2 className="w-4 h-4 text-primary absolute top-3 right-3" />
@@ -150,19 +175,29 @@ export default function SettingsPage() {
                       {user.name?.[0]?.toUpperCase()}
                     </div>
                     <div>
-                      <div className="font-semibold text-foreground">{user.name}</div>
-                      <div className="text-sm text-muted-foreground">{user.email}</div>
+                      <div className="font-semibold text-foreground">
+                        {user.name}
+                      </div>
+                      <div className="text-sm text-muted-foreground">
+                        {user.email}
+                      </div>
                     </div>
                   </div>
                   <div className="grid grid-cols-2 gap-4 pt-2 border-t border-border">
                     <div>
-                      <Label className="text-xs text-muted-foreground uppercase tracking-wider">{t("settings.memberId")}</Label>
+                      <Label className="text-xs text-muted-foreground uppercase tracking-wider">
+                        {t("settings.memberId")}
+                      </Label>
                       <div className="font-mono text-sm mt-1">#{user.id}</div>
                     </div>
                     <div>
-                      <Label className="text-xs text-muted-foreground uppercase tracking-wider">{t("settings.since")}</Label>
+                      <Label className="text-xs text-muted-foreground uppercase tracking-wider">
+                        {t("settings.since")}
+                      </Label>
                       <div className="text-sm mt-1">
-                        {format(new Date(user.createdAt), "PP", { locale: dateLocale })}
+                        {format(new Date(user.createdAt), "PP", {
+                          locale: dateLocale,
+                        })}
                       </div>
                     </div>
                   </div>
@@ -173,14 +208,21 @@ export default function SettingsPage() {
             <div className="bg-card rounded-xl border border-border overflow-hidden">
               <div className="px-4 py-4 border-b border-border flex items-center gap-2 sm:px-6">
                 <LockKeyhole className="w-4 h-4 text-muted-foreground" />
-                <h2 className="font-semibold">{t("settings.changePassword")}</h2>
+                <h2 className="font-semibold">
+                  {t("settings.changePassword")}
+                </h2>
               </div>
-              <form onSubmit={handlePasswordChange} className="p-4 space-y-4 sm:p-6">
+              <form
+                onSubmit={handlePasswordChange}
+                className="p-4 space-y-4 sm:p-6"
+              >
                 <p className="text-sm text-muted-foreground">
                   {t("settings.changePasswordDescription")}
                 </p>
                 <div className="space-y-2">
-                  <Label htmlFor="current-password">{t("settings.currentPassword")}</Label>
+                  <Label htmlFor="current-password">
+                    {t("settings.currentPassword")}
+                  </Label>
                   <Input
                     id="current-password"
                     type="password"
@@ -193,7 +235,9 @@ export default function SettingsPage() {
                 </div>
                 <div className="grid gap-4 md:grid-cols-2">
                   <div className="space-y-2">
-                    <Label htmlFor="new-password">{t("settings.newPassword")}</Label>
+                    <Label htmlFor="new-password">
+                      {t("settings.newPassword")}
+                    </Label>
                     <Input
                       id="new-password"
                       type="password"
@@ -206,12 +250,16 @@ export default function SettingsPage() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="confirm-password">{t("settings.confirmPassword")}</Label>
+                    <Label htmlFor="confirm-password">
+                      {t("settings.confirmPassword")}
+                    </Label>
                     <Input
                       id="confirm-password"
                       type="password"
                       value={confirmPassword}
-                      onChange={(event) => setConfirmPassword(event.target.value)}
+                      onChange={(event) =>
+                        setConfirmPassword(event.target.value)
+                      }
                       autoComplete="new-password"
                       minLength={8}
                       required
@@ -239,7 +287,6 @@ export default function SettingsPage() {
                 {t("settings.save")}
               </Button>
             </div>
-
           </div>
         </div>
       </AppLayout>

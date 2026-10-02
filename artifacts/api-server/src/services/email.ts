@@ -38,7 +38,7 @@ function createTransport() {
 
 export async function sendPasswordResetEmail(
   email: string,
-  resetUrl: string
+  resetUrl: string,
 ): Promise<void> {
   const from =
     process.env.RESEND_FROM_EMAIL ||

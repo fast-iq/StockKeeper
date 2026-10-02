@@ -1,6 +1,12 @@
 import { Router, type IRouter } from "express";
-import { db, itemsTable, categoriesTable, unitsTable, locationsTable } from "@workspace/db";
-import { eq, and, like, inArray, or } from "drizzle-orm";
+import {
+  db,
+  itemsTable,
+  categoriesTable,
+  unitsTable,
+  locationsTable,
+} from "@workspace/db";
+import { eq, and, like, inArray, or, isNull } from "drizzle-orm";
 import {
   CreateItemBody,
   UpdateItemBody,
@@ -13,23 +19,93 @@ import { requireAuth } from "../middlewares/auth";
 
 const router: IRouter = Router();
 
-async function getAllDescendantIds(userId: number, parentId: number): Promise<number[]> {
+async function getAllDescendantIds(
+  userId: number,
+  parentId: number,
+): Promise<number[]> {
   const allCats = await db
     .select({ id: categoriesTable.id, parentId: categoriesTable.parentId })
     .from(categoriesTable)
     .where(eq(categoriesTable.userId, userId));
 
+  const ownIds = new Set(allCats.map((c) => c.id));
+  if (!ownIds.has(parentId)) return [];
+
+  const childrenOf = new Map<number, number[]>();
+  for (const cat of allCats) {
+    if (cat.parentId == null) continue;
+    const siblings = childrenOf.get(cat.parentId);
+    if (siblings) siblings.push(cat.id);
+    else childrenOf.set(cat.parentId, [cat.id]);
+  }
+
   const result: number[] = [];
   const queue = [parentId];
+  const visited = new Set<number>([parentId]);
 
   while (queue.length > 0) {
     const current = queue.shift()!;
     result.push(current);
-    const children = allCats.filter((c) => c.parentId === current);
-    queue.push(...children.map((c) => c.id));
+    for (const child of childrenOf.get(current) ?? []) {
+      if (visited.has(child)) continue;
+      visited.add(child);
+      queue.push(child);
+    }
   }
 
   return result;
+}
+
+type ItemRefs = {
+  categoryId?: number | null;
+  unitId?: number | null;
+  locationId?: number | null;
+};
+
+async function validateItemRefs(
+  userId: number,
+  refs: ItemRefs,
+): Promise<string | null> {
+  if (refs.categoryId != null) {
+    const [cat] = await db
+      .select({ id: categoriesTable.id })
+      .from(categoriesTable)
+      .where(
+        and(
+          eq(categoriesTable.id, refs.categoryId),
+          eq(categoriesTable.userId, userId),
+        ),
+      );
+    if (!cat) return "categoryId does not exist";
+  }
+
+  if (refs.unitId != null) {
+    const [unit] = await db
+      .select({ id: unitsTable.id })
+      .from(unitsTable)
+      .where(
+        and(
+          eq(unitsTable.id, refs.unitId),
+          or(isNull(unitsTable.userId), eq(unitsTable.userId, userId)),
+        ),
+      );
+    if (!unit) return "unitId does not exist";
+  }
+
+  if (refs.locationId != null) {
+    const [loc] = await db
+      .select({ id: locationsTable.id })
+      .from(locationsTable)
+      .where(
+        and(
+          eq(locationsTable.id, refs.locationId),
+          eq(locationsTable.userId, userId),
+        ),
+      );
+    if (!loc) return "locationId does not exist";
+  }
+
+  return null;
 }
 
 function serializeItem(item: {
@@ -71,13 +147,19 @@ function serializeItem(item: {
 
 async function resolveUnit(unitId: number | null | undefined) {
   if (!unitId) return { unitSymbol: null, unitName: null };
-  const [unit] = await db.select().from(unitsTable).where(eq(unitsTable.id, unitId));
+  const [unit] = await db
+    .select()
+    .from(unitsTable)
+    .where(eq(unitsTable.id, unitId));
   return { unitSymbol: unit?.symbol ?? null, unitName: unit?.name ?? null };
 }
 
 async function resolveLocation(locationId: number | null | undefined) {
   if (!locationId) return { locationName: null };
-  const [loc] = await db.select().from(locationsTable).where(eq(locationsTable.id, locationId));
+  const [loc] = await db
+    .select()
+    .from(locationsTable)
+    .where(eq(locationsTable.id, locationId));
   return { locationName: loc?.name ?? null };
 }
 
@@ -89,7 +171,8 @@ router.get("/items", requireAuth, async (req, res): Promise<void> => {
   }
 
   const userId = req.session.userId!;
-  const { categoryId, locationId, search, includeSubcategories } = queryParsed.data;
+  const { categoryId, locationId, search, includeSubcategories } =
+    queryParsed.data;
 
   let categoryIds: number[] | null = null;
   if (categoryId != null) {
@@ -125,13 +208,33 @@ router.get("/items", requireAuth, async (req, res): Promise<void> => {
       categoryName: categoriesTable.name,
     })
     .from(itemsTable)
-    .leftJoin(categoriesTable, eq(itemsTable.categoryId, categoriesTable.id))
-    .leftJoin(unitsTable, eq(itemsTable.unitId, unitsTable.id))
-    .leftJoin(locationsTable, eq(itemsTable.locationId, locationsTable.id))
+    .leftJoin(
+      categoriesTable,
+      and(
+        eq(itemsTable.categoryId, categoriesTable.id),
+        eq(categoriesTable.userId, userId),
+      ),
+    )
+    .leftJoin(
+      unitsTable,
+      and(
+        eq(itemsTable.unitId, unitsTable.id),
+        or(isNull(unitsTable.userId), eq(unitsTable.userId, userId)),
+      ),
+    )
+    .leftJoin(
+      locationsTable,
+      and(
+        eq(itemsTable.locationId, locationsTable.id),
+        eq(locationsTable.userId, userId),
+      ),
+    )
     .where(
       and(
         eq(itemsTable.userId, userId),
-        categoryIds != null ? inArray(itemsTable.categoryId, categoryIds) : undefined,
+        categoryIds != null
+          ? inArray(itemsTable.categoryId, categoryIds)
+          : undefined,
         locationId != null ? eq(itemsTable.locationId, locationId) : undefined,
         search
           ? or(
@@ -156,6 +259,13 @@ router.post("/items", requireAuth, async (req, res): Promise<void> => {
   }
 
   const userId = req.session.userId!;
+
+  const refError = await validateItemRefs(userId, parsed.data);
+  if (refError) {
+    res.status(400).json({ error: refError });
+    return;
+  }
+
   const [item] = await db
     .insert(itemsTable)
     .values({ ...parsed.data, userId })
@@ -166,13 +276,26 @@ router.post("/items", requireAuth, async (req, res): Promise<void> => {
     const [cat] = await db
       .select({ name: categoriesTable.name })
       .from(categoriesTable)
-      .where(eq(categoriesTable.id, item.categoryId));
+      .where(
+        and(
+          eq(categoriesTable.id, item.categoryId),
+          eq(categoriesTable.userId, userId),
+        ),
+      );
     categoryName = cat?.name ?? null;
   }
 
   const { unitSymbol, unitName } = await resolveUnit(item.unitId);
   const { locationName } = await resolveLocation(item.locationId);
-  res.status(201).json(serializeItem({ ...item, categoryName, unitSymbol, unitName, locationName }));
+  res.status(201).json(
+    serializeItem({
+      ...item,
+      categoryName,
+      unitSymbol,
+      unitName,
+      locationName,
+    }),
+  );
 });
 
 router.get("/items/:id", requireAuth, async (req, res): Promise<void> => {
@@ -208,10 +331,30 @@ router.get("/items/:id", requireAuth, async (req, res): Promise<void> => {
       categoryName: categoriesTable.name,
     })
     .from(itemsTable)
-    .leftJoin(categoriesTable, eq(itemsTable.categoryId, categoriesTable.id))
-    .leftJoin(unitsTable, eq(itemsTable.unitId, unitsTable.id))
-    .leftJoin(locationsTable, eq(itemsTable.locationId, locationsTable.id))
-    .where(and(eq(itemsTable.id, params.data.id), eq(itemsTable.userId, userId)));
+    .leftJoin(
+      categoriesTable,
+      and(
+        eq(itemsTable.categoryId, categoriesTable.id),
+        eq(categoriesTable.userId, userId),
+      ),
+    )
+    .leftJoin(
+      unitsTable,
+      and(
+        eq(itemsTable.unitId, unitsTable.id),
+        or(isNull(unitsTable.userId), eq(unitsTable.userId, userId)),
+      ),
+    )
+    .leftJoin(
+      locationsTable,
+      and(
+        eq(itemsTable.locationId, locationsTable.id),
+        eq(locationsTable.userId, userId),
+      ),
+    )
+    .where(
+      and(eq(itemsTable.id, params.data.id), eq(itemsTable.userId, userId)),
+    );
 
   if (!row) {
     res.status(404).json({ error: "Item not found" });
@@ -235,10 +378,19 @@ router.patch("/items/:id", requireAuth, async (req, res): Promise<void> => {
   }
 
   const userId = req.session.userId!;
+
+  const refError = await validateItemRefs(userId, parsed.data);
+  if (refError) {
+    res.status(400).json({ error: refError });
+    return;
+  }
+
   const [item] = await db
     .update(itemsTable)
     .set(parsed.data)
-    .where(and(eq(itemsTable.id, params.data.id), eq(itemsTable.userId, userId)))
+    .where(
+      and(eq(itemsTable.id, params.data.id), eq(itemsTable.userId, userId)),
+    )
     .returning();
 
   if (!item) {
@@ -251,13 +403,26 @@ router.patch("/items/:id", requireAuth, async (req, res): Promise<void> => {
     const [cat] = await db
       .select({ name: categoriesTable.name })
       .from(categoriesTable)
-      .where(eq(categoriesTable.id, item.categoryId));
+      .where(
+        and(
+          eq(categoriesTable.id, item.categoryId),
+          eq(categoriesTable.userId, userId),
+        ),
+      );
     categoryName = cat?.name ?? null;
   }
 
   const { unitSymbol, unitName } = await resolveUnit(item.unitId);
   const { locationName } = await resolveLocation(item.locationId);
-  res.json(serializeItem({ ...item, categoryName, unitSymbol, unitName, locationName }));
+  res.json(
+    serializeItem({
+      ...item,
+      categoryName,
+      unitSymbol,
+      unitName,
+      locationName,
+    }),
+  );
 });
 
 router.delete("/items/:id", requireAuth, async (req, res): Promise<void> => {
@@ -270,7 +435,9 @@ router.delete("/items/:id", requireAuth, async (req, res): Promise<void> => {
   const userId = req.session.userId!;
   const [item] = await db
     .delete(itemsTable)
-    .where(and(eq(itemsTable.id, params.data.id), eq(itemsTable.userId, userId)))
+    .where(
+      and(eq(itemsTable.id, params.data.id), eq(itemsTable.userId, userId)),
+    )
     .returning();
 
   if (!item) {

@@ -42,7 +42,9 @@ function Router() {
 }
 
 function App() {
-  const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID as string | undefined;
+  const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID as
+    | string
+    | undefined;
 
   const content = (
     <>
@@ -58,7 +60,9 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       {googleClientId ? (
-        <GoogleOAuthProvider clientId={googleClientId}>{content}</GoogleOAuthProvider>
+        <GoogleOAuthProvider clientId={googleClientId}>
+          {content}
+        </GoogleOAuthProvider>
       ) : (
         content
       )}

@@ -15,7 +15,15 @@ import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
-import { ShoppingCart, Plus, Trash2, Loader2, X, Package, CheckSquare } from "lucide-react";
+import {
+  ShoppingCart,
+  Plus,
+  Trash2,
+  Loader2,
+  X,
+  Package,
+  CheckSquare,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export default function ShoppingListPage() {
@@ -42,7 +50,13 @@ export default function ShoppingListPage() {
   const handleAdd = () => {
     if (!addName.trim()) return;
     add.mutate(
-      { data: { name: addName.trim(), quantity: addQty, note: addNote || undefined } },
+      {
+        data: {
+          name: addName.trim(),
+          quantity: addQty,
+          note: addNote || undefined,
+        },
+      },
       {
         onSuccess: () => {
           invalidate();
@@ -51,16 +65,14 @@ export default function ShoppingListPage() {
           setAddNote("");
           setShowAddForm(false);
         },
-        onError: () => toast({ title: t("shopping.addFailed"), variant: "destructive" }),
-      }
+        onError: () =>
+          toast({ title: t("shopping.addFailed"), variant: "destructive" }),
+      },
     );
   };
 
   const handleToggle = (id: number, checked: boolean) => {
-    update.mutate(
-      { id, data: { checked } },
-      { onSuccess: invalidate }
-    );
+    update.mutate({ id, data: { checked } }, { onSuccess: invalidate });
   };
 
   const handleDelete = (id: number) => {
@@ -68,8 +80,9 @@ export default function ShoppingListPage() {
       { id },
       {
         onSuccess: invalidate,
-        onError: () => toast({ title: t("shopping.deleteFailed"), variant: "destructive" }),
-      }
+        onError: () =>
+          toast({ title: t("shopping.deleteFailed"), variant: "destructive" }),
+      },
     );
   };
 
@@ -79,7 +92,9 @@ export default function ShoppingListPage() {
 
   const handleClearAll = () => {
     if (!confirm(t("shopping.confirmClearAll"))) return;
-    Promise.all(items.map((item) => remove.mutateAsync({ id: item.id }))).then(invalidate);
+    Promise.all(items.map((item) => remove.mutateAsync({ id: item.id }))).then(
+      invalidate,
+    );
   };
 
   const unchecked = items.filter((i) => !i.checked);
@@ -90,12 +105,15 @@ export default function ShoppingListPage() {
       <AppLayout>
         <div className="flex-1 overflow-y-auto p-4 sm:p-6 md:p-8">
           <div className="mx-auto max-w-2xl space-y-6">
-
             {/* Header */}
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">{t("shopping.title")}</h1>
-                <p className="text-muted-foreground mt-1">{t("shopping.subtitle")}</p>
+                <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">
+                  {t("shopping.title")}
+                </h1>
+                <p className="text-muted-foreground mt-1">
+                  {t("shopping.subtitle")}
+                </p>
               </div>
               <div className="flex flex-wrap justify-end gap-2">
                 {checked.length > 0 && (
@@ -136,7 +154,9 @@ export default function ShoppingListPage() {
                     type="number"
                     min={1}
                     value={addQty}
-                    onChange={(e) => setAddQty(Math.max(1, Number(e.target.value)))}
+                    onChange={(e) =>
+                      setAddQty(Math.max(1, Number(e.target.value)))
+                    }
                     className="w-20 shrink-0"
                     placeholder={t("shopping.quantity")}
                   />
@@ -148,12 +168,24 @@ export default function ShoppingListPage() {
                   onKeyDown={(e) => e.key === "Enter" && handleAdd()}
                 />
                 <div className="flex justify-end gap-2">
-                  <Button variant="outline" size="sm" onClick={() => setShowAddForm(false)}>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowAddForm(false)}
+                  >
                     <X className="w-4 h-4 mr-2" />
                     {t("shopping.cancel")}
                   </Button>
-                  <Button size="sm" onClick={handleAdd} disabled={!addName.trim() || add.isPending}>
-                    {add.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Plus className="w-4 h-4 mr-2" />}
+                  <Button
+                    size="sm"
+                    onClick={handleAdd}
+                    disabled={!addName.trim() || add.isPending}
+                  >
+                    {add.isPending ? (
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    ) : (
+                      <Plus className="w-4 h-4 mr-2" />
+                    )}
                     {t("shopping.add")}
                   </Button>
                 </div>
@@ -168,8 +200,12 @@ export default function ShoppingListPage() {
             ) : items.length === 0 ? (
               <div className="bg-card border border-border rounded-xl p-12 text-center space-y-3">
                 <ShoppingCart className="w-10 h-10 text-muted-foreground/30 mx-auto" />
-                <div className="font-medium text-muted-foreground">{t("shopping.emptyList")}</div>
-                <div className="text-sm text-muted-foreground/60">{t("shopping.emptyHint")}</div>
+                <div className="font-medium text-muted-foreground">
+                  {t("shopping.emptyList")}
+                </div>
+                <div className="text-sm text-muted-foreground/60">
+                  {t("shopping.emptyHint")}
+                </div>
               </div>
             ) : (
               <div className="bg-card border border-border rounded-xl overflow-hidden divide-y divide-border">
@@ -181,7 +217,10 @@ export default function ShoppingListPage() {
                     onToggle={handleToggle}
                     onDelete={handleDelete}
                     onNoteChange={(id, note) =>
-                      update.mutate({ id, data: { note } }, { onSuccess: invalidate })
+                      update.mutate(
+                        { id, data: { note } },
+                        { onSuccess: invalidate },
+                      )
                     }
                   />
                 ))}
@@ -201,7 +240,10 @@ export default function ShoppingListPage() {
                         onToggle={handleToggle}
                         onDelete={handleDelete}
                         onNoteChange={(id, note) =>
-                          update.mutate({ id, data: { note } }, { onSuccess: invalidate })
+                          update.mutate(
+                            { id, data: { note } },
+                            { onSuccess: invalidate },
+                          )
                         }
                       />
                     ))}
@@ -224,7 +266,6 @@ export default function ShoppingListPage() {
                 </Button>
               </div>
             )}
-
           </div>
         </div>
       </AppLayout>
@@ -265,7 +306,7 @@ function ShoppingRow({
     <div
       className={cn(
         "group px-4 py-3 flex items-start gap-3 transition-colors hover:bg-muted/10",
-        item.checked && "opacity-50"
+        item.checked && "opacity-50",
       )}
     >
       <Checkbox
@@ -274,7 +315,12 @@ function ShoppingRow({
         className="mt-0.5 shrink-0"
       />
       <div className="flex-1 min-w-0">
-        <div className={cn("font-medium leading-tight", item.checked && "line-through text-muted-foreground")}>
+        <div
+          className={cn(
+            "font-medium leading-tight",
+            item.checked && "line-through text-muted-foreground",
+          )}
+        >
           {item.name}
           {item.unit && (
             <span className="ml-2 text-xs font-mono text-muted-foreground bg-muted px-1.5 py-0.5 rounded">

@@ -28,12 +28,19 @@ type CategoryNode = CategoryRow & {
   itemCount: number;
 };
 
-function buildTree(cats: CategoryRow[], itemCounts: Map<number, number>): CategoryNode[] {
+function buildTree(
+  cats: CategoryRow[],
+  itemCounts: Map<number, number>,
+): CategoryNode[] {
   const map = new Map<number, CategoryNode>();
   const roots: CategoryNode[] = [];
 
   for (const cat of cats) {
-    map.set(cat.id, { ...cat, children: [], itemCount: itemCounts.get(cat.id) ?? 0 });
+    map.set(cat.id, {
+      ...cat,
+      children: [],
+      itemCount: itemCounts.get(cat.id) ?? 0,
+    });
   }
 
   for (const cat of cats) {
@@ -54,6 +61,38 @@ function serializeNode(node: CategoryNode): object {
     createdAt: node.createdAt.toISOString(),
     children: node.children.map(serializeNode),
   };
+}
+
+async function validateParentId(
+  userId: number,
+  parentId: number | null,
+  selfId?: number,
+): Promise<string | null> {
+  if (parentId == null) return null;
+  if (selfId != null && parentId === selfId) {
+    return "A category cannot be its own parent";
+  }
+
+  const cats = await db
+    .select({ id: categoriesTable.id, parentId: categoriesTable.parentId })
+    .from(categoriesTable)
+    .where(eq(categoriesTable.userId, userId));
+
+  const parentOf = new Map(cats.map((c) => [c.id, c.parentId]));
+  if (!parentOf.has(parentId)) return "parentId does not exist";
+
+  const visited = new Set<number>();
+  let current: number | null = parentId;
+  while (current != null) {
+    if (selfId != null && current === selfId) {
+      return "A category cannot be moved under its own descendant";
+    }
+    if (visited.has(current)) return "Category hierarchy contains a cycle";
+    visited.add(current);
+    current = parentOf.get(current) ?? null;
+  }
+
+  return null;
 }
 
 router.get("/categories", requireAuth, async (req, res): Promise<void> => {
@@ -90,6 +129,16 @@ router.post("/categories", requireAuth, async (req, res): Promise<void> => {
   }
 
   const userId = req.session.userId!;
+
+  const parentError = await validateParentId(
+    userId,
+    parsed.data.parentId ?? null,
+  );
+  if (parentError) {
+    res.status(400).json({ error: parentError });
+    return;
+  }
+
   const [cat] = await db
     .insert(categoriesTable)
     .values({ ...parsed.data, userId })
@@ -109,7 +158,12 @@ router.get("/categories/:id", requireAuth, async (req, res): Promise<void> => {
   const [cat] = await db
     .select()
     .from(categoriesTable)
-    .where(and(eq(categoriesTable.id, params.data.id), eq(categoriesTable.userId, userId)));
+    .where(
+      and(
+        eq(categoriesTable.id, params.data.id),
+        eq(categoriesTable.userId, userId),
+      ),
+    );
 
   if (!cat) {
     res.status(404).json({ error: "Category not found" });
@@ -119,53 +173,84 @@ router.get("/categories/:id", requireAuth, async (req, res): Promise<void> => {
   res.json({ ...cat, createdAt: cat.createdAt.toISOString() });
 });
 
-router.patch("/categories/:id", requireAuth, async (req, res): Promise<void> => {
-  const params = UpdateCategoryParams.safeParse(req.params);
-  if (!params.success) {
-    res.status(400).json({ error: params.error.message });
-    return;
-  }
+router.patch(
+  "/categories/:id",
+  requireAuth,
+  async (req, res): Promise<void> => {
+    const params = UpdateCategoryParams.safeParse(req.params);
+    if (!params.success) {
+      res.status(400).json({ error: params.error.message });
+      return;
+    }
 
-  const parsed = UpdateCategoryBody.safeParse(req.body);
-  if (!parsed.success) {
-    res.status(400).json({ error: parsed.error.message });
-    return;
-  }
+    const parsed = UpdateCategoryBody.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: parsed.error.message });
+      return;
+    }
 
-  const userId = req.session.userId!;
-  const [cat] = await db
-    .update(categoriesTable)
-    .set(parsed.data)
-    .where(and(eq(categoriesTable.id, params.data.id), eq(categoriesTable.userId, userId)))
-    .returning();
+    const userId = req.session.userId!;
 
-  if (!cat) {
-    res.status(404).json({ error: "Category not found" });
-    return;
-  }
+    if (parsed.data.parentId !== undefined) {
+      const parentError = await validateParentId(
+        userId,
+        parsed.data.parentId,
+        params.data.id,
+      );
+      if (parentError) {
+        res.status(400).json({ error: parentError });
+        return;
+      }
+    }
 
-  res.json({ ...cat, createdAt: cat.createdAt.toISOString() });
-});
+    const [cat] = await db
+      .update(categoriesTable)
+      .set(parsed.data)
+      .where(
+        and(
+          eq(categoriesTable.id, params.data.id),
+          eq(categoriesTable.userId, userId),
+        ),
+      )
+      .returning();
 
-router.delete("/categories/:id", requireAuth, async (req, res): Promise<void> => {
-  const params = DeleteCategoryParams.safeParse(req.params);
-  if (!params.success) {
-    res.status(400).json({ error: params.error.message });
-    return;
-  }
+    if (!cat) {
+      res.status(404).json({ error: "Category not found" });
+      return;
+    }
 
-  const userId = req.session.userId!;
-  const [cat] = await db
-    .delete(categoriesTable)
-    .where(and(eq(categoriesTable.id, params.data.id), eq(categoriesTable.userId, userId)))
-    .returning();
+    res.json({ ...cat, createdAt: cat.createdAt.toISOString() });
+  },
+);
 
-  if (!cat) {
-    res.status(404).json({ error: "Category not found" });
-    return;
-  }
+router.delete(
+  "/categories/:id",
+  requireAuth,
+  async (req, res): Promise<void> => {
+    const params = DeleteCategoryParams.safeParse(req.params);
+    if (!params.success) {
+      res.status(400).json({ error: params.error.message });
+      return;
+    }
 
-  res.sendStatus(204);
-});
+    const userId = req.session.userId!;
+    const [cat] = await db
+      .delete(categoriesTable)
+      .where(
+        and(
+          eq(categoriesTable.id, params.data.id),
+          eq(categoriesTable.userId, userId),
+        ),
+      )
+      .returning();
+
+    if (!cat) {
+      res.status(404).json({ error: "Category not found" });
+      return;
+    }
+
+    res.sendStatus(204);
+  },
+);
 
 export default router;

@@ -11,12 +11,28 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { FolderTree, Plus, Edit2, Trash2, Loader2, Save, X, ChevronDown, ChevronRight } from "lucide-react";
+import {
+  FolderTree,
+  Plus,
+  Edit2,
+  Trash2,
+  Loader2,
+  Save,
+  X,
+  ChevronDown,
+  ChevronRight,
+} from "lucide-react";
 import type { CategoryNode } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
 
@@ -26,10 +42,20 @@ type EditingState =
   | null;
 
 function computeSubtreeCount(node: CategoryNode): number {
-  return node.itemCount + (node.children || []).reduce((sum, child) => sum + computeSubtreeCount(child), 0);
+  return (
+    node.itemCount +
+    (node.children || []).reduce(
+      (sum, child) => sum + computeSubtreeCount(child),
+      0,
+    )
+  );
 }
 
-function flattenTree(nodes: CategoryNode[], result: CategoryNode[] = [], level = 0): CategoryNode[] {
+function flattenTree(
+  nodes: CategoryNode[],
+  result: CategoryNode[] = [],
+  level = 0,
+): CategoryNode[] {
   nodes.forEach((node) => {
     result.push({ ...node, name: `${"—".repeat(level)} ${node.name}` });
     if (node.children) flattenTree(node.children, result, level + 1);
@@ -51,15 +77,20 @@ export default function CategoriesPage() {
       <AppLayout>
         <div className="flex-1 overflow-y-auto p-4 sm:p-6 md:p-8">
           <div className="max-w-4xl mx-auto space-y-6">
-
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">{t("categories.title")}</h1>
-                <p className="text-muted-foreground mt-1">{t("categories.subtitle")}</p>
+                <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">
+                  {t("categories.title")}
+                </h1>
+                <p className="text-muted-foreground mt-1">
+                  {t("categories.subtitle")}
+                </p>
               </div>
               <Button
                 onClick={() => setEditing({ type: "creating", parentId: null })}
-                disabled={editing?.type === "creating" && editing.parentId === null}
+                disabled={
+                  editing?.type === "creating" && editing.parentId === null
+                }
                 className="w-full sm:w-auto"
               >
                 <Plus className="w-4 h-4 mr-2" /> {t("categories.newCategory")}
@@ -73,17 +104,20 @@ export default function CategoriesPage() {
                 </div>
               ) : (
                 <div className="divide-y divide-border">
-                  {editing?.type === "creating" && editing.parentId === null && (
-                    <CategoryForm
-                      category={null}
-                      defaultParentId={null}
-                      allCategories={flatCategories}
-                      onClose={() => setEditing(null)}
-                      level={0}
-                    />
-                  )}
+                  {editing?.type === "creating" &&
+                    editing.parentId === null && (
+                      <CategoryForm
+                        category={null}
+                        defaultParentId={null}
+                        allCategories={flatCategories}
+                        onClose={() => setEditing(null)}
+                        level={0}
+                      />
+                    )}
                   {categories?.length === 0 &&
-                    !(editing?.type === "creating" && editing.parentId === null) && (
+                    !(
+                      editing?.type === "creating" && editing.parentId === null
+                    ) && (
                       <div className="p-8 text-center text-muted-foreground">
                         {t("categories.noCategories")}
                       </div>
@@ -137,12 +171,17 @@ function CategoryTreeRow({
         { id: node.id },
         {
           onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: getListCategoriesQueryKey() });
+            queryClient.invalidateQueries({
+              queryKey: getListCategoriesQueryKey(),
+            });
             toast({ title: t("categories.categoryDeleted") });
           },
           onError: () =>
-            toast({ title: t("categories.failedToDelete"), variant: "destructive" }),
-        }
+            toast({
+              title: t("categories.failedToDelete"),
+              variant: "destructive",
+            }),
+        },
       );
     }
   };
@@ -183,7 +222,7 @@ function CategoryTreeRow({
           <button
             className={cn(
               "w-5 h-5 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors shrink-0",
-              !hasChildren && "opacity-0 pointer-events-none"
+              !hasChildren && "opacity-0 pointer-events-none",
             )}
             onClick={() => setExpanded(!expanded)}
           >
@@ -208,9 +247,13 @@ function CategoryTreeRow({
 
           {/* Name + description */}
           <div className="flex-1 min-w-0">
-            <div className="font-medium leading-tight truncate">{node.name}</div>
+            <div className="font-medium leading-tight truncate">
+              {node.name}
+            </div>
             {node.description && (
-              <div className="text-xs text-muted-foreground truncate">{node.description}</div>
+              <div className="text-xs text-muted-foreground truncate">
+                {node.description}
+              </div>
             )}
           </div>
 
@@ -238,10 +281,13 @@ function CategoryTreeRow({
               setEditing(
                 editing?.type === "creating" && editing.parentId === node.id
                   ? null
-                  : { type: "creating", parentId: node.id }
+                  : { type: "creating", parentId: node.id },
               )
             }
-            disabled={editing !== null && !(editing.type === "creating" && editing.parentId === node.id)}
+            disabled={
+              editing !== null &&
+              !(editing.type === "creating" && editing.parentId === node.id)
+            }
           >
             <Plus className="w-3.5 h-3.5" />
           </Button>
@@ -338,26 +384,36 @@ function CategoryForm({
         { data },
         {
           onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: getListCategoriesQueryKey() });
+            queryClient.invalidateQueries({
+              queryKey: getListCategoriesQueryKey(),
+            });
             toast({ title: t("categories.categoryCreated") });
             onClose();
           },
           onError: () =>
-            toast({ title: t("categories.errorCreating"), variant: "destructive" }),
-        }
+            toast({
+              title: t("categories.errorCreating"),
+              variant: "destructive",
+            }),
+        },
       );
     } else {
       updateCategory.mutate(
         { id: category.id, data },
         {
           onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: getListCategoriesQueryKey() });
+            queryClient.invalidateQueries({
+              queryKey: getListCategoriesQueryKey(),
+            });
             toast({ title: t("categories.categoryUpdated") });
             onClose();
           },
           onError: () =>
-            toast({ title: t("categories.errorUpdating"), variant: "destructive" }),
-        }
+            toast({
+              title: t("categories.errorUpdating"),
+              variant: "destructive",
+            }),
+        },
       );
     }
   };
@@ -403,7 +459,9 @@ function CategoryForm({
                 <SelectValue placeholder={t("categories.noneRootLevel")} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="none">{t("categories.noneRootLevel")}</SelectItem>
+                <SelectItem value="none">
+                  {t("categories.noneRootLevel")}
+                </SelectItem>
                 {allCategories
                   .filter((c) => c.id !== category?.id)
                   .map((c) => (
