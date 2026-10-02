@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/"
+title = "StockKeeper"
+version = "1.0.0"
+id = "artifacts/inventory-app"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 24449
+
+[services.development]
+run = "pnpm --filter @workspace/inventory-app run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/inventory-app", "run", "build" ]
+publicDir = "artifacts/inventory-app/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "24449"
+BASE_PATH = "/"
