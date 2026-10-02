@@ -161,7 +161,25 @@ pnpm audit --audit-level=high   # No known vulnerabilities found
 | 90005    | Sec-Fetch-\* missing (Info, 4 алерта)            | IGNORE в `.zap/rules.tsv` (заголовки шлёт браузер, не сканер)                                     |
 
 Формат `.zap/rules.tsv` (как в README action-baseline): `ID<TAB>IGNORE<TAB>(название)` — **табы, не пробелы**;
-подключён в `zap.yml` через `rules_file_name: ".zap/rules.tsv"`. Новые ложные срабатывания добавлять туда же.
+подключён в `zap.yml` через `rules_file_name: ".zap/rules.tsv"`.
+
+**Второй прогон (после фиксов, 02.10.2026): High 0 / Medium 0 / Low 0 / Info 5.** Из них:
+
+- **4 × Sec-Fetch-\* (90005)** — alpha-правило `FetchMetadataRequestHeadersScanRule`
+  (`pscanrulesAlpha`, подтверждено `PLUGIN_ID = 90005`); в скан попадало **только из-за
+  `cmd_options: "-a"`** → `-a` удалён из `zap.yml` (больше alpha ничего не давало;
+  шумные Base64Disclosure/FullPathDisclosure больше не участвуют).
+- **1 × Non-Storable Content (10049)** — beta `CacheableScanRule` (ставится всегда); сработал
+  **из-за нашего `Cache-Control: no-store`** — ZAP предлагает кэшировать. Не дыра, оставили;
+  поддерживаемого способа убрать нет (в baseline нет per-rule отключения pscan: `get_af_pscan_config`
+  принимает только `enableTags`/`maxAlertsPerRule`).
+
+**Ограничение `rules.tsv` (upstream, проверено по исходникам):** в `@zaproxy/actions-common-scans`
+при `allow_issue_writing: false` `processReport` делает ранний `return` сразу после `uploadArtifacts`
+и **не доходит до `filterReport`** → в артефакт попадают сырые отчёты; `rules.tsv` влияет только на
+exit code. С `true` фильтруется лишь `report_json.json` (md/html не трогаются), при чистом отчёте
+артефакт вообще не загружается (return до upload), нужны `issues: write` и создаются issues —
+поэтому `allow_issue_writing: false` оставлен осознанно, не «чинить» включениеем issue-writing.
 
 ## 4. Итоги верификации (02.10.2026)
 
@@ -231,7 +249,7 @@ M artifacts/mockup-sandbox/src/hooks/use-toast.ts           # то же
 + ~210 файлов переформатировано prettier (полный реформат, включая *.md и json)
 ```
 
-Правки сессии 3 (ворнинги CI/lint + спека User; ещё не закоммичены):
+Правки сессии 3 (ворнинги CI/lint + спека User; запушены в `9b195f1`):
 M .github/workflows/_.yml (5 шт.) # ubuntu-24.04 пин, gitleaks-action@v3
 M lib/api-spec/openapi.yaml # User: +language (enum auto/ru/en), +isAdmin
 M lib/api-client-react/src/generated/api.schemas.ts # UserLanguage, поля User (+codegen)
@@ -242,13 +260,17 @@ M eslint.config.mjs # fs-heuristics off для build-тулчейна
 M package.json # lint: --max-warnings=0
 M AGENTS.md # §1/§2.13/§3.5/§4/§5
 
-Правки сессии 4 (ZAP: отчёты/заголовки/rules; ещё не закоммичены):
+Правки сессии 4 (ZAP: отчёты/заголовки/rules; запушены в `bc60960` вместе с переименованием AGETS→AGENTS):
 M artifacts/api-server/src/app.ts # x-powered-by off, no-store+Permissions-Policy, свой404 с CSP
 M .github/workflows/zap.yml # + rules*file_name: .zap/rules.tsv
 M .gitignore / .prettierignore # + 4 файла отчётов ZAP
 A .zap/rules.tsv (новый) # 90005 IGNORE (Sec-Fetch-\*)
 M AGENTS.md # инварианты 16-17, §3.6, §4, §5
 (отчёты results.sarif/report*\* остались untracked и намеренно не коммичатся)
+
+Правки сессии 5 (ZAP: убран `-a`; ещё не закоммичены):
+M .github/workflows/zap.yml # - cmd_options: "-a" (источник 4× Info 90005)
+M AGENTS.md # §3.6: второй прогон 0/0/0 + ограничение rules.tsv; §5/§6
 
 ## 6. Окружение и известные ограничения
 
@@ -260,10 +282,13 @@ M AGENTS.md # инварианты 16-17, §3.6, §4, §5
 - **GHAS**: StockKeeper приватный, CodeQL и Dependency Review без лицензии GitHub Advanced Security не
   работают → закрыты guard'ом `private == false` (в awg-easy работают, т.к. тот репозиторий публичный).
   Если подключат GHAS — убрать guard в `codeql.yml`/`dependency-review.yml`.
-- **ZAP-скан**: первый ручной прогон (`workflow_dispatch`) выполнен успешно 02.10.2026 — High 0 / Medium 1 /
-  Low 2 / Info 5 (разбор и фиксы: §3.6). Ложные срабатывания складывать в `.zap/rules.tsv` (формат с табами,
-  `rules_file_name` уже подключён); при желании включить `fail_action: true` и добавить `-I` в `cmd_options`.
-  Отчётный `results.sarif` пришёл пустым (`results: []`) — алерты брать из `report_md.md`/`report_json.json`.
+- **ZAP-скан**: прогон 1 — High 0 / Medium 1 / Low 2 / Info 5 (фикс: §3.6); прогон 2 после фиксов —
+  **High 0 / Medium 0 / Low 0 / Info 5**, из них 4 × Sec-Fetch убраны удалением `cmd_options: "-a"`
+  (alpha-правило 90005), остаётся 1 × 10049 ( следствие нашего `no-store`, безвредно).
+  `rules_file_name: ".zap/rules.tsv"` подключён, но из-за upstream-ограничения
+  (`allow_issue_writing: false` → нет `filterReport`) влияет только на exit code — см. §3.6;
+  `fail_action` не включать (иначе job упадёт на любом info-алерте), `-I` в `cmd_options` не нужен.
+  Отчётный `results.sarif` приходит пустым (`results: []`) — алерты брать из `report_md.md`/`report_json.json`.
 - **Gitleaks**: v2 бесплатен для user-аккаунтов; `fast-iq` — User (не Org), лицензия не нужна.
 - **`artifacts/mockup-sandbox/src/.generated/mockup-components.ts`** — tracked-файл, который
   перегенерируется при каждом `vite build` mockup-sandbox (и становится «грязным» в git status).
