@@ -170,9 +170,10 @@ pnpm audit --audit-level=high   # No known vulnerabilities found
   `cmd_options: "-a"`** → `-a` удалён из `zap.yml` (больше alpha ничего не давало;
   шумные Base64Disclosure/FullPathDisclosure больше не участвуют).
 - **1 × Non-Storable Content (10049)** — beta `CacheableScanRule` (ставится всегда); сработал
-  **из-за нашего `Cache-Control: no-store`** — ZAP предлагает кэшировать. Не дыра, оставили;
-  поддерживаемого способа убрать нет (в baseline нет per-rule отключения pscan: `get_af_pscan_config`
-  принимает только `enableTags`/`maxAlertsPerRule`).
+  **из-за нашего `Cache-Control: no-store`** — ZAP предлагает кэшировать. Не дыра; штатными
+  средствами baseline не убирается (AF-job `get_af_pscan_config` принимает только
+  `enableTags`/`maxAlertsPerRule`; `rules.tsv` при `allow_issue_writing: false` артефакт не
+  фильтрует) → отключено на уровне ZAP, см. «Третий/четвёртый прогон» ниже.
 
 **Ограничение `rules.tsv` (upstream, проверено по исходникам):** в `@zaproxy/actions-common-scans`
 при `allow_issue_writing: false` `processReport` делает ранний `return` сразу после `uploadArtifacts`
@@ -180,6 +181,26 @@ pnpm audit --audit-level=high   # No known vulnerabilities found
 exit code. С `true` фильтруется лишь `report_json.json` (md/html не трогаются), при чистом отчёте
 артефакт вообще не загружается (return до upload), нужны `issues: write` и создаются issues —
 поэтому `allow_issue_writing: false` оставлен осознанно, не «чинить» включениеем issue-writing.
+
+**Третий прогон (после удаления `-a`, 02.10.2026): High 0 / Medium 0 / Low 0 / Info 1** —
+остался только 10049.
+
+**Фикс 10049** — `cmd_options` в `zap.yml`:
+
+`'-z "-config pscans.pscanner(0).id=10049 -config pscans.pscanner(0).enabled=false"'`
+
+Цепочка (проверено по исходникам): `cmd_options` → аргументы `zap-baseline.py` (action `index.js`)
+→ `-z` → `shlex.split` → `-config` в argv ZAP → `Model.init(overrides)` → `AbstractParam.load`
+применяет overrides к `config.xml` **до** `parse()` → при загрузке правила `ExtensionPassiveScan2.add()`
+вызывает `pps.setConfig(getModel().getOptionsParam().getConfig())` → `loadFrom` читает
+`configurationsAt("pscans.pscanner")`. Оба ключа обязательны: без `id=10049` запись не
+сопоставится с правилом (`isPluginConfiguration` сверяет `id`/`classname`). В дефолтном `config.xml`
+записей `pscanner` нет → индекс `(0)` безопасен; AF-job `passiveScan-config` состояние правил не
+перетирает (трогает только autoTagScanners через `enableTags`).
+
+**Четвёртый прогон (после фикса, 02.10.2026, run 37046631099 @ `b7f5cc7`): High 0 / Medium 0 /
+Low 0 / Informational 0**, `alerts: []` — отчёт полностью чистый (Insights-статистика внизу отчёта —
+не алерты).
 
 ## 4. Итоги верификации (02.10.2026)
 
@@ -268,9 +289,13 @@ A .zap/rules.tsv (новый) # 90005 IGNORE (Sec-Fetch-\*)
 M AGENTS.md # инварианты 16-17, §3.6, §4, §5
 (отчёты results.sarif/report*\* остались untracked и намеренно не коммичатся)
 
-Правки сессии 5 (ZAP: убран `-a`; ещё не закоммичены):
+Правки сессии 5 (ZAP: убран `-a`; запушены в `35b3739`):
 M .github/workflows/zap.yml # - cmd_options: "-a" (источник 4× Info 90005)
 M AGENTS.md # §3.6: второй прогон 0/0/0 + ограничение rules.tsv; §5/§6
+
+Правки сессии 6 (ZAP: отключение 10049 → чистый отчёт; zap.yml запушен в `b7f5cc7`):
+M .github/workflows/zap.yml # + cmd_options: '-z "-config pscans.pscanner(0)..."'
+M AGENTS.md # §3.6: 3-й/4-й прогон и механика -config; §5/§6
 
 ## 6. Окружение и известные ограничения
 
@@ -285,6 +310,8 @@ M AGENTS.md # §3.6: второй прогон 0/0/0 + ограничение ru
 - **ZAP-скан**: прогон 1 — High 0 / Medium 1 / Low 2 / Info 5 (фикс: §3.6); прогон 2 после фиксов —
   **High 0 / Medium 0 / Low 0 / Info 5**, из них 4 × Sec-Fetch убраны удалением `cmd_options: "-a"`
   (alpha-правило 90005), остаётся 1 × 10049 ( следствие нашего `no-store`, безвредно).
+  Прогон 3 (без `-a`) — 0/0/0 + Info 1; **прогон 4 (с `-config` отключением 10049, `b7f5cc7`) —
+  High 0 / Medium 0 / Low 0 / Informational 0, `alerts: []`** (механика: §3.6).
   `rules_file_name: ".zap/rules.tsv"` подключён, но из-за upstream-ограничения
   (`allow_issue_writing: false` → нет `filterReport`) влияет только на exit code — см. §3.6;
   `fail_action` не включать (иначе job упадёт на любом info-алерте), `-I` в `cmd_options` не нужен.
