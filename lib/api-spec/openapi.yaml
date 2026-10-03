@@ -21,6 +21,72 @@ tags:
   - name: shopping-list
     description: Shopping list operations
 paths:
+  /data/export:
+    get:
+      operationId: exportData
+      tags: [items]
+      summary: Download the current user's inventory or full account data
+      parameters:
+        - name: format
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [json, xlsx]
+      responses:
+        "200":
+          description: Downloadable file; JSON excludes credentials and sessions
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        "401":
+          description: Not authenticated
+  /data/preview:
+    post:
+      operationId: previewDataImport
+      tags: [items]
+      summary: Validate a file without writing any data
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TransferFileInput"
+      responses:
+        "200":
+          description: Validated content and warnings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TransferPreview"
+        "400":
+          description: Invalid or unsupported file
+        "401":
+          description: Not authenticated
+  /data/import:
+    post:
+      operationId: importData
+      tags: [items]
+      summary: Atomically append validated data, optionally skipping matching records
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TransferImportInput"
+      responses:
+        "200":
+          description: Import counts
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TransferImportResult"
+        "400":
+          description: Invalid data
+        "401":
+          description: Not authenticated
   /healthz:
     get:
       operationId: healthCheck
@@ -632,6 +698,172 @@ paths:
 
 components:
   schemas:
+    TransferFileInput:
+      type: object
+      required: [fileName, content]
+      properties:
+        fileName:
+          type: string
+          maxLength: 255
+        content:
+          type: string
+          description: Base64 encoded file, maximum 5 MiB decoded
+          maxLength: 6990508
+    TransferCounts:
+      type: object
+      required: [items, categories, locations, units, shoppingList]
+      properties:
+        items:
+          type: integer
+        categories:
+          type: integer
+        locations:
+          type: integer
+        units:
+          type: integer
+        shoppingList:
+          type: integer
+    TransferCategory:
+      type: object
+      required: [id, name]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        parentId:
+          type: ["integer", "null"]
+        description:
+          type: ["string", "null"]
+        color:
+          type: ["string", "null"]
+        icon:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+    TransferLocation:
+      type: object
+      required: [id, name]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        description:
+          type: ["string", "null"]
+        icon:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+    TransferUnit:
+      type: object
+      required: [id, name, symbol]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        symbol:
+          type: string
+    TransferItem:
+      allOf:
+        - $ref: "#/components/schemas/CreateItemBody"
+        - type: object
+          required: [id]
+          properties:
+            id:
+              type: integer
+            createdAt:
+              type: string
+            updatedAt:
+              type: string
+    TransferShoppingEntry:
+      type: object
+      required: [id, name, quantity, checked]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        quantity:
+          type: integer
+        checked:
+          type: boolean
+        itemId:
+          type: ["integer", "null"]
+        unit:
+          type: ["string", "null"]
+        note:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+    TransferBundle:
+      type: object
+      required:
+        [format, version, categories, locations, units, items, shoppingList]
+      properties:
+        format:
+          type: string
+          enum: [stockkeeper]
+        version:
+          type: integer
+          enum: [1]
+        exportedAt:
+          type: string
+        categories:
+          type: array
+          maxItems: 10000
+          items:
+            $ref: "#/components/schemas/TransferCategory"
+        locations:
+          type: array
+          maxItems: 10000
+          items:
+            $ref: "#/components/schemas/TransferLocation"
+        units:
+          type: array
+          maxItems: 10000
+          items:
+            $ref: "#/components/schemas/TransferUnit"
+        items:
+          type: array
+          maxItems: 10000
+          items:
+            $ref: "#/components/schemas/TransferItem"
+        shoppingList:
+          type: array
+          maxItems: 10000
+          items:
+            $ref: "#/components/schemas/TransferShoppingEntry"
+    TransferPreview:
+      type: object
+      required: [data, counts, warnings]
+      properties:
+        data:
+          $ref: "#/components/schemas/TransferBundle"
+        counts:
+          $ref: "#/components/schemas/TransferCounts"
+        warnings:
+          type: array
+          items:
+            type: string
+    TransferImportInput:
+      type: object
+      required: [data, mode]
+      properties:
+        data:
+          $ref: "#/components/schemas/TransferBundle"
+        mode:
+          type: string
+          enum: [skip, add]
+    TransferImportResult:
+      type: object
+      required: [created, skipped]
+      properties:
+        created:
+          $ref: "#/components/schemas/TransferCounts"
+        skipped:
+          type: integer
     HealthStatus:
       type: object
       properties:
@@ -848,6 +1080,10 @@ components:
           type: ["string", "null"]
         quantity:
           type: integer
+        price:
+          type: ["number", "null"]
+          minimum: 0
+          maximum: 999999999999.99
         photoUrl:
           type: ["string", "null"]
         unitId:
@@ -908,6 +1144,10 @@ components:
           type: ["string", "null"]
         quantity:
           type: integer
+        price:
+          type: ["number", "null"]
+          minimum: 0
+          maximum: 999999999999.99
         photoUrl:
           type: ["string", "null"]
         unitId:
@@ -941,6 +1181,10 @@ components:
           type: ["string", "null"]
         quantity:
           type: integer
+        price:
+          type: ["number", "null"]
+          minimum: 0
+          maximum: 999999999999.99
         photoUrl:
           type: ["string", "null"]
         unitId:

@@ -1,11 +1,11 @@
-modules = ["nodejs-24", "postgresql-16"]
+modules = ["nodejs-24", "python-base-3.13", "postgresql-16"]
 
 [deployment]
 router = "application"
 deploymentTarget = "autoscale"
 
 [deployment.postBuild]
-args = ["corepack", "pnpm", "store", "prune"]
+args = ["pnpm", "store", "prune"]
 env = { "CI" = "true" }
 
 [workflows]
@@ -19,23 +19,5 @@ expertMode = true
 path = "scripts/post-merge.sh"
 timeoutMs = 20000
 
-[[ports]]
-localPort = 8080
-externalPort = 8080
-
-[[ports]]
-localPort = 8081
-externalPort = 80
-
-[[ports]]
-localPort = 24449
-externalPort = 3000
-
 [nix]
 channel = "stable-25_05"
-
-[userenv]
-
-[userenv.shared]
-GOOGLE_CLIENT_ID = "535398666019-6grvgeq6vdd0qaukv0al0hpq1pqql35k.apps.googleusercontent.com"
-VITE_GOOGLE_CLIENT_ID = "535398666019-6grvgeq6vdd0qaukv0al0hpq1pqql35k.apps.googleusercontent.com"

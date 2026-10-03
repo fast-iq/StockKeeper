@@ -9,6 +9,203 @@ import * as zod from 'zod';
 
 
 /**
+ * @summary Download the current user's inventory or full account data
+ */
+export const ExportDataQueryParams = zod.object({
+  "format": zod.enum(['json', 'xlsx'])
+})
+
+export const ExportDataResponse = zod.unknown()
+
+
+/**
+ * @summary Validate a file without writing any data
+ */
+export const previewDataImportBodyFileNameMax = 255;
+
+export const previewDataImportBodyContentMax = 6990508;
+
+
+
+export const PreviewDataImportBody = zod.object({
+  "fileName": zod.string().max(previewDataImportBodyFileNameMax),
+  "content": zod.string().max(previewDataImportBodyContentMax).describe('Base64 encoded file, maximum 5 MiB decoded')
+})
+
+export const previewDataImportResponseDataCategoriesMax = 10000;
+
+export const previewDataImportResponseDataLocationsMax = 10000;
+
+export const previewDataImportResponseDataUnitsMax = 10000;
+
+export const previewDataImportResponseDataItemsItemOnePriceMin = 0;
+export const previewDataImportResponseDataItemsItemOnePriceMax = 999999999999.99;
+
+export const previewDataImportResponseDataItemsMax = 10000;
+
+export const previewDataImportResponseDataShoppingListMax = 10000;
+
+
+
+export const PreviewDataImportResponse = zod.object({
+  "data": zod.object({
+  "format": zod.enum(['stockkeeper']),
+  "version": zod.literal(1),
+  "exportedAt": zod.string().optional(),
+  "categories": zod.array(zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "parentId": zod.number().nullish(),
+  "description": zod.string().nullish(),
+  "color": zod.string().nullish(),
+  "icon": zod.string().nullish(),
+  "createdAt": zod.string().optional()
+})).max(previewDataImportResponseDataCategoriesMax),
+  "locations": zod.array(zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "description": zod.string().nullish(),
+  "icon": zod.string().nullish(),
+  "createdAt": zod.string().optional()
+})).max(previewDataImportResponseDataLocationsMax),
+  "units": zod.array(zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "symbol": zod.string()
+})).max(previewDataImportResponseDataUnitsMax),
+  "items": zod.array(zod.object({
+  "name": zod.string(),
+  "description": zod.string().nullish(),
+  "quantity": zod.number(),
+  "price": zod.number().min(previewDataImportResponseDataItemsItemOnePriceMin).max(previewDataImportResponseDataItemsItemOnePriceMax).nullish(),
+  "photoUrl": zod.string().nullish(),
+  "unitId": zod.number().nullish(),
+  "unit": zod.string().nullish(),
+  "locationId": zod.number().nullish(),
+  "location": zod.string().nullish(),
+  "sku": zod.string().nullish(),
+  "barcode": zod.string().nullish(),
+  "tags": zod.string().nullish(),
+  "notes": zod.string().nullish(),
+  "categoryId": zod.number().nullish()
+}).and(zod.object({
+  "id": zod.number(),
+  "createdAt": zod.string().optional(),
+  "updatedAt": zod.string().optional()
+}))).max(previewDataImportResponseDataItemsMax),
+  "shoppingList": zod.array(zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "quantity": zod.number(),
+  "checked": zod.boolean(),
+  "itemId": zod.number().nullish(),
+  "unit": zod.string().nullish(),
+  "note": zod.string().nullish(),
+  "createdAt": zod.string().optional()
+})).max(previewDataImportResponseDataShoppingListMax)
+}),
+  "counts": zod.object({
+  "items": zod.number(),
+  "categories": zod.number(),
+  "locations": zod.number(),
+  "units": zod.number(),
+  "shoppingList": zod.number()
+}),
+  "warnings": zod.array(zod.string())
+})
+
+
+/**
+ * @summary Atomically append validated data, optionally skipping matching records
+ */
+export const importDataBodyDataCategoriesMax = 10000;
+
+export const importDataBodyDataLocationsMax = 10000;
+
+export const importDataBodyDataUnitsMax = 10000;
+
+export const importDataBodyDataItemsItemOnePriceMin = 0;
+export const importDataBodyDataItemsItemOnePriceMax = 999999999999.99;
+
+export const importDataBodyDataItemsMax = 10000;
+
+export const importDataBodyDataShoppingListMax = 10000;
+
+
+
+export const ImportDataBody = zod.object({
+  "data": zod.object({
+  "format": zod.enum(['stockkeeper']),
+  "version": zod.literal(1),
+  "exportedAt": zod.string().optional(),
+  "categories": zod.array(zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "parentId": zod.number().nullish(),
+  "description": zod.string().nullish(),
+  "color": zod.string().nullish(),
+  "icon": zod.string().nullish(),
+  "createdAt": zod.string().optional()
+})).max(importDataBodyDataCategoriesMax),
+  "locations": zod.array(zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "description": zod.string().nullish(),
+  "icon": zod.string().nullish(),
+  "createdAt": zod.string().optional()
+})).max(importDataBodyDataLocationsMax),
+  "units": zod.array(zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "symbol": zod.string()
+})).max(importDataBodyDataUnitsMax),
+  "items": zod.array(zod.object({
+  "name": zod.string(),
+  "description": zod.string().nullish(),
+  "quantity": zod.number(),
+  "price": zod.number().min(importDataBodyDataItemsItemOnePriceMin).max(importDataBodyDataItemsItemOnePriceMax).nullish(),
+  "photoUrl": zod.string().nullish(),
+  "unitId": zod.number().nullish(),
+  "unit": zod.string().nullish(),
+  "locationId": zod.number().nullish(),
+  "location": zod.string().nullish(),
+  "sku": zod.string().nullish(),
+  "barcode": zod.string().nullish(),
+  "tags": zod.string().nullish(),
+  "notes": zod.string().nullish(),
+  "categoryId": zod.number().nullish()
+}).and(zod.object({
+  "id": zod.number(),
+  "createdAt": zod.string().optional(),
+  "updatedAt": zod.string().optional()
+}))).max(importDataBodyDataItemsMax),
+  "shoppingList": zod.array(zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "quantity": zod.number(),
+  "checked": zod.boolean(),
+  "itemId": zod.number().nullish(),
+  "unit": zod.string().nullish(),
+  "note": zod.string().nullish(),
+  "createdAt": zod.string().optional()
+})).max(importDataBodyDataShoppingListMax)
+}),
+  "mode": zod.enum(['skip', 'add'])
+})
+
+export const ImportDataResponse = zod.object({
+  "created": zod.object({
+  "items": zod.number(),
+  "categories": zod.number(),
+  "locations": zod.number(),
+  "units": zod.number(),
+  "shoppingList": zod.number()
+}),
+  "skipped": zod.number()
+})
+
+
+/**
  * Returns server health status
  * @summary Health check
  */
@@ -258,11 +455,17 @@ export const ListItemsQueryParams = zod.object({
   "includeSubcategories": zod.coerce.boolean().optional()
 })
 
+export const listItemsResponsePriceMin = 0;
+export const listItemsResponsePriceMax = 999999999999.99;
+
+
+
 export const ListItemsResponseItem = zod.object({
   "id": zod.number(),
   "name": zod.string(),
   "description": zod.string().nullable(),
   "quantity": zod.number(),
+  "price": zod.number().min(listItemsResponsePriceMin).max(listItemsResponsePriceMax).nullish(),
   "photoUrl": zod.string().nullish(),
   "unitId": zod.number().nullish(),
   "unitSymbol": zod.string().nullish(),
@@ -287,10 +490,16 @@ export const ListItemsResponse = zod.array(ListItemsResponseItem)
 /**
  * @summary Create a new item
  */
+export const createItemBodyPriceMin = 0;
+export const createItemBodyPriceMax = 999999999999.99;
+
+
+
 export const CreateItemBody = zod.object({
   "name": zod.string(),
   "description": zod.string().nullish(),
   "quantity": zod.number(),
+  "price": zod.number().min(createItemBodyPriceMin).max(createItemBodyPriceMax).nullish(),
   "photoUrl": zod.string().nullish(),
   "unitId": zod.number().nullish(),
   "unit": zod.string().nullish(),
@@ -303,11 +512,17 @@ export const CreateItemBody = zod.object({
   "categoryId": zod.number().nullish()
 })
 
+export const createItemResponsePriceMin = 0;
+export const createItemResponsePriceMax = 999999999999.99;
+
+
+
 export const CreateItemResponse = zod.object({
   "id": zod.number(),
   "name": zod.string(),
   "description": zod.string().nullable(),
   "quantity": zod.number(),
+  "price": zod.number().min(createItemResponsePriceMin).max(createItemResponsePriceMax).nullish(),
   "photoUrl": zod.string().nullish(),
   "unitId": zod.number().nullish(),
   "unitSymbol": zod.string().nullish(),
@@ -335,11 +550,17 @@ export const GetItemParams = zod.object({
   "id": zod.coerce.number()
 })
 
+export const getItemResponsePriceMin = 0;
+export const getItemResponsePriceMax = 999999999999.99;
+
+
+
 export const GetItemResponse = zod.object({
   "id": zod.number(),
   "name": zod.string(),
   "description": zod.string().nullable(),
   "quantity": zod.number(),
+  "price": zod.number().min(getItemResponsePriceMin).max(getItemResponsePriceMax).nullish(),
   "photoUrl": zod.string().nullish(),
   "unitId": zod.number().nullish(),
   "unitSymbol": zod.string().nullish(),
@@ -367,10 +588,16 @@ export const UpdateItemParams = zod.object({
   "id": zod.coerce.number()
 })
 
+export const updateItemBodyPriceMin = 0;
+export const updateItemBodyPriceMax = 999999999999.99;
+
+
+
 export const UpdateItemBody = zod.object({
   "name": zod.string().optional(),
   "description": zod.string().nullish(),
   "quantity": zod.number().optional(),
+  "price": zod.number().min(updateItemBodyPriceMin).max(updateItemBodyPriceMax).nullish(),
   "photoUrl": zod.string().nullish(),
   "unitId": zod.number().nullish(),
   "unit": zod.string().nullish(),
@@ -383,11 +610,17 @@ export const UpdateItemBody = zod.object({
   "categoryId": zod.number().nullish()
 })
 
+export const updateItemResponsePriceMin = 0;
+export const updateItemResponsePriceMax = 999999999999.99;
+
+
+
 export const UpdateItemResponse = zod.object({
   "id": zod.number(),
   "name": zod.string(),
   "description": zod.string().nullable(),
   "quantity": zod.number(),
+  "price": zod.number().min(updateItemResponsePriceMin).max(updateItemResponsePriceMax).nullish(),
   "photoUrl": zod.string().nullish(),
   "unitId": zod.number().nullish(),
   "unitSymbol": zod.string().nullish(),
@@ -437,11 +670,17 @@ export const GetRecentItemsQueryParams = zod.object({
   "limit": zod.coerce.number().optional()
 })
 
+export const getRecentItemsResponsePriceMin = 0;
+export const getRecentItemsResponsePriceMax = 999999999999.99;
+
+
+
 export const GetRecentItemsResponseItem = zod.object({
   "id": zod.number(),
   "name": zod.string(),
   "description": zod.string().nullable(),
   "quantity": zod.number(),
+  "price": zod.number().min(getRecentItemsResponsePriceMin).max(getRecentItemsResponsePriceMax).nullish(),
   "photoUrl": zod.string().nullish(),
   "unitId": zod.number().nullish(),
   "unitSymbol": zod.string().nullish(),

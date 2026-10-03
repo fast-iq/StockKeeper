@@ -81,6 +81,8 @@ app.use(
     credentials: true,
   }),
 );
+// Transfer files are transient request data, not persisted uploads.
+app.use("/api/data", express.json({ limit: "8mb" }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -102,7 +104,8 @@ app.use(
     cookie: {
       httpOnly: true,
       secure: isProduction,
-      sameSite: isProduction ? "none" : "lax",
+      // Frontend and API share an origin; never send sessions on cross-site POSTs.
+      sameSite: "lax",
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
     },
   }),

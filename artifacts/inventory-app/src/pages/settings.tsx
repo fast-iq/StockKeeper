@@ -1,5 +1,6 @@
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { AppLayout } from "@/components/layout/AppLayout";
+import { DataExchange } from "@/components/DataExchange";
 import { useGetMe } from "@workspace/api-client-react";
 import { useTranslation } from "react-i18next";
 import { setLanguage } from "@/i18n";
@@ -280,6 +281,8 @@ export default function SettingsPage() {
                 </div>
               </form>
             </div>
+
+            <DataExchange />
 
             <div className="flex justify-end">
               <Button onClick={handleSave} className="w-full md:w-auto px-8">

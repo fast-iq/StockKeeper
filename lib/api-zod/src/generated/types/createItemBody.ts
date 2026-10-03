@@ -11,6 +11,12 @@ export interface CreateItemBody {
   /** @nullable */
   description?: string | null;
   quantity: number;
+  /**
+     * @minimum 0
+     * @maximum 999999999999.99
+     * @nullable
+     */
+  price?: number | null;
   /** @nullable */
   photoUrl?: string | null;
   /** @nullable */

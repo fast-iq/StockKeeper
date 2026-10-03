@@ -30,6 +30,7 @@ import type {
   CreateItemBody,
   DashboardStats,
   ErrorResponse,
+  ExportDataParams,
   ForgotPasswordBody,
   GetRecentItemsParams,
   GoogleLoginBody,
@@ -41,6 +42,10 @@ import type {
   RegisterBody,
   ResetPasswordBody,
   ShoppingListItem,
+  TransferFileInput,
+  TransferImportInput,
+  TransferImportResult,
+  TransferPreview,
   UpdateCategoryBody,
   UpdateItemBody,
   UpdateShoppingListBody,
@@ -73,6 +78,232 @@ const withQueryKey = <T extends object, K>(query: T, queryKey: K): T & { queryKe
   }
   return result;
 };
+
+export const getExportDataUrl = (params: ExportDataParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/data/export?${stringifiedParams}` : `/api/data/export`
+}
+
+/**
+ * @summary Download the current user's inventory or full account data
+ */
+export const exportData = async (params: ExportDataParams, options?: RequestInit): Promise<Blob> => {
+
+  return customFetch<Blob>(getExportDataUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getExportDataQueryKey = (params?: ExportDataParams,) => {
+    return [
+    `/api/data/export`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getExportDataQueryOptions = <TData = Awaited<ReturnType<typeof exportData>>, TError = ErrorType<void>>(params: ExportDataParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof exportData>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getExportDataQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof exportData>>> = ({ signal }) => exportData(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof exportData>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ExportDataQueryResult = NonNullable<Awaited<ReturnType<typeof exportData>>>
+export type ExportDataQueryError = ErrorType<void>
+
+
+/**
+ * @summary Download the current user's inventory or full account data
+ */
+
+export function useExportData<TData = Awaited<ReturnType<typeof exportData>>, TError = ErrorType<void>>(
+ params: ExportDataParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof exportData>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getExportDataQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getPreviewDataImportUrl = () => {
+
+
+
+
+  return `/api/data/preview`
+}
+
+/**
+ * @summary Validate a file without writing any data
+ */
+export const previewDataImport = async (transferFileInput: TransferFileInput, options?: RequestInit): Promise<TransferPreview> => {
+
+  return customFetch<TransferPreview>(getPreviewDataImportUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(transferFileInput)
+  }
+);}
+
+
+
+
+
+export const getPreviewDataImportMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof previewDataImport>>, TError,{data: BodyType<TransferFileInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof previewDataImport>>, TError,{data: BodyType<TransferFileInput>}, TContext> => {
+
+const mutationKey = ['previewDataImport'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof previewDataImport>>, {data: BodyType<TransferFileInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  previewDataImport(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type PreviewDataImportMutationResult = NonNullable<Awaited<ReturnType<typeof previewDataImport>>>
+    export type PreviewDataImportMutationBody = BodyType<TransferFileInput>
+    export type PreviewDataImportMutationError = ErrorType<void>
+
+    /**
+ * @summary Validate a file without writing any data
+ */
+export const usePreviewDataImport = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof previewDataImport>>, TError,{data: BodyType<TransferFileInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof previewDataImport>>,
+        TError,
+        {data: BodyType<TransferFileInput>},
+        TContext
+      > => {
+      return useMutation(getPreviewDataImportMutationOptions(options));
+    }
+
+export const getImportDataUrl = () => {
+
+
+
+
+  return `/api/data/import`
+}
+
+/**
+ * @summary Atomically append validated data, optionally skipping matching records
+ */
+export const importData = async (transferImportInput: TransferImportInput, options?: RequestInit): Promise<TransferImportResult> => {
+
+  return customFetch<TransferImportResult>(getImportDataUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(transferImportInput)
+  }
+);}
+
+
+
+
+
+export const getImportDataMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof importData>>, TError,{data: BodyType<TransferImportInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof importData>>, TError,{data: BodyType<TransferImportInput>}, TContext> => {
+
+const mutationKey = ['importData'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof importData>>, {data: BodyType<TransferImportInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  importData(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ImportDataMutationResult = NonNullable<Awaited<ReturnType<typeof importData>>>
+    export type ImportDataMutationBody = BodyType<TransferImportInput>
+    export type ImportDataMutationError = ErrorType<void>
+
+    /**
+ * @summary Atomically append validated data, optionally skipping matching records
+ */
+export const useImportData = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof importData>>, TError,{data: BodyType<TransferImportInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof importData>>,
+        TError,
+        {data: BodyType<TransferImportInput>},
+        TContext
+      > => {
+      return useMutation(getImportDataMutationOptions(options));
+    }
 
 export const getHealthCheckUrl = () => {
 

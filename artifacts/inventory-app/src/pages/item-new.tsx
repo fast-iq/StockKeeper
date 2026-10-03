@@ -24,6 +24,7 @@ import { Link, useLocation } from "wouter";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import type { CategoryNode } from "@workspace/api-client-react";
+import { parsePrice } from "@/lib/price";
 import { useTranslation } from "react-i18next";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
@@ -67,6 +68,7 @@ type CopySource = {
   description: string | null;
   photoUrl: string | null;
   quantity: number;
+  price: number | null;
   unitId: number | null;
   locationId: number | null;
   location: string | null;
@@ -117,6 +119,15 @@ function NewItemForm({
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
 
+    const parsedPrice = parsePrice(formData.get("price"));
+    if ("error" in parsedPrice) {
+      toast({
+        title: t("price.title"),
+        description: t(parsedPrice.error),
+        variant: "destructive",
+      });
+      return;
+    }
     const categoryIdVal = formData.get("categoryId");
     const unitIdVal = formData.get("unitId");
     const locationIdVal = formData.get("locationId");
@@ -126,6 +137,7 @@ function NewItemForm({
       description: (formData.get("description") as string) || null,
       photoUrl: (formData.get("photoUrl") as string) || null,
       quantity: Number(formData.get("quantity")) || 0,
+      price: parsedPrice.value,
       unitId: unitIdVal && unitIdVal !== "none" ? Number(unitIdVal) : null,
       locationId:
         locationIdVal && locationIdVal !== "none"
@@ -244,7 +256,7 @@ function NewItemForm({
                 <Label htmlFor="description">
                   {t("itemNew.shortDescription")}
                 </Label>
-                <Input
+                <Textarea
                   id="description"
                   name="description"
                   defaultValue={copySource?.description ?? ""}
@@ -275,6 +287,22 @@ function NewItemForm({
                   required
                   className="font-mono text-lg bg-background"
                 />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="price">{t("price.label")}</Label>
+                <Input
+                  id="price"
+                  name="price"
+                  type="text"
+                  inputMode="decimal"
+                  defaultValue={copySource?.price?.toString() ?? ""}
+                  placeholder={t("price.placeholder")}
+                  className="font-mono bg-background"
+                  data-testid="input-price"
+                />
+                <p className="text-xs text-muted-foreground">
+                  {t("price.hint")}
+                </p>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="unitId">{t("itemNew.unitOfMeasure")}</Label>
@@ -443,6 +471,7 @@ export default function NewItemPage() {
             description: item.description,
             photoUrl: item.photoUrl,
             quantity: item.quantity,
+            price: item.price ?? null,
             unitId: item.unitId,
             locationId: item.locationId,
             location: item.location,

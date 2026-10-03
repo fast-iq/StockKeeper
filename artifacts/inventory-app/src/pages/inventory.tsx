@@ -1,3 +1,4 @@
+import { formatPrice } from "@/lib/price";
 import { useEffect, useRef, useState } from "react";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { AppLayout } from "@/components/layout/AppLayout";
@@ -563,6 +564,14 @@ function ItemRow({ item }: { item: Item }) {
               </span>
             ) : null}
           </span>
+          {item.price != null && (
+            <span
+              className="ml-2 text-xs font-mono text-muted-foreground"
+              data-testid={`text-price-${item.id}`}
+            >
+              {formatPrice(item.price)}
+            </span>
+          )}
           <button
             className="w-6 h-6 flex items-center justify-center rounded border border-border bg-card hover:bg-muted opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-foreground"
             onClick={() => handleQuantityChange(1)}
@@ -736,6 +745,14 @@ function MobileItemCard({ item }: { item: Item }) {
               </span>
             ) : null}
           </span>
+          {item.price != null && (
+            <span
+              className="ml-2 text-xs font-mono text-muted-foreground"
+              data-testid={`text-price-${item.id}`}
+            >
+              {formatPrice(item.price)}
+            </span>
+          )}
           <button
             type="button"
             className="flex h-9 w-9 items-center justify-center rounded-md border border-border bg-background text-lg text-muted-foreground active:bg-muted"

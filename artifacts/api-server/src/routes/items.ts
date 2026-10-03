@@ -16,6 +16,7 @@ import {
   ListItemsQueryParams,
 } from "@workspace/api-zod";
 import { requireAuth } from "../middlewares/auth";
+import { validPrice } from "../services/transfer-validation";
 
 const router: IRouter = Router();
 
@@ -114,6 +115,7 @@ function serializeItem(item: {
   description: string | null;
   photoUrl?: string | null;
   quantity: number;
+  price?: number | null;
   unitId?: number | null;
   unitSymbol?: string | null;
   unitName?: string | null;
@@ -190,6 +192,7 @@ router.get("/items", requireAuth, async (req, res): Promise<void> => {
       description: itemsTable.description,
       photoUrl: itemsTable.photoUrl,
       quantity: itemsTable.quantity,
+      price: itemsTable.price,
       unitId: itemsTable.unitId,
       unitSymbol: unitsTable.symbol,
       unitName: unitsTable.name,
@@ -260,6 +263,13 @@ router.post("/items", requireAuth, async (req, res): Promise<void> => {
 
   const userId = req.session.userId!;
 
+  if (!validPrice(parsed.data.price)) {
+    res
+      .status(400)
+      .json({ error: "Price must have at most two decimal places." });
+    return;
+  }
+
   const refError = await validateItemRefs(userId, parsed.data);
   if (refError) {
     res.status(400).json({ error: refError });
@@ -313,6 +323,7 @@ router.get("/items/:id", requireAuth, async (req, res): Promise<void> => {
       description: itemsTable.description,
       photoUrl: itemsTable.photoUrl,
       quantity: itemsTable.quantity,
+      price: itemsTable.price,
       unitId: itemsTable.unitId,
       unitSymbol: unitsTable.symbol,
       unitName: unitsTable.name,
@@ -378,6 +389,13 @@ router.patch("/items/:id", requireAuth, async (req, res): Promise<void> => {
   }
 
   const userId = req.session.userId!;
+
+  if (!validPrice(parsed.data.price)) {
+    res
+      .status(400)
+      .json({ error: "Price must have at most two decimal places." });
+    return;
+  }
 
   const refError = await validateItemRefs(userId, parsed.data);
   if (refError) {

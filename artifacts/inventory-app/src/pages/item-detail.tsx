@@ -45,6 +45,8 @@ import { useToast } from "@/hooks/use-toast";
 import type { CategoryNode } from "@workspace/api-client-react";
 import { formatDistanceToNow, format } from "date-fns";
 import { ru as ruLocale, enUS } from "date-fns/locale";
+import { parsePrice } from "@/lib/price";
+import { formatPrice } from "@/lib/price";
 import { useTranslation } from "react-i18next";
 import i18n from "@/i18n";
 
@@ -160,6 +162,15 @@ export default function ItemDetailPage() {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
 
+    const parsedPrice = parsePrice(formData.get("price"));
+    if ("error" in parsedPrice) {
+      toast({
+        title: t("price.title"),
+        description: t(parsedPrice.error),
+        variant: "destructive",
+      });
+      return;
+    }
     const categoryIdVal = formData.get("categoryId");
     const unitIdVal = formData.get("unitId");
     const locationIdVal = formData.get("locationId");
@@ -168,6 +179,7 @@ export default function ItemDetailPage() {
       name: formData.get("name") as string,
       description: (formData.get("description") as string) || null,
       photoUrl: (formData.get("photoUrl") as string) || null,
+      price: parsedPrice.value,
       unitId: unitIdVal && unitIdVal !== "none" ? Number(unitIdVal) : null,
       locationId:
         locationIdVal && locationIdVal !== "none"
@@ -371,7 +383,7 @@ export default function ItemDetailPage() {
                         <Label htmlFor="description">
                           {t("itemDetail.description")}
                         </Label>
-                        <Input
+                        <Textarea
                           id="description"
                           name="description"
                           defaultValue={item.description || ""}
@@ -420,6 +432,22 @@ export default function ItemDetailPage() {
                       {t("itemDetail.logistics")}
                     </h2>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                      <div className="space-y-2">
+                        <Label htmlFor="price">{t("price.label")}</Label>
+                        <Input
+                          id="price"
+                          name="price"
+                          type="text"
+                          inputMode="decimal"
+                          defaultValue={item.price?.toString() ?? ""}
+                          placeholder={t("price.placeholder")}
+                          className="font-mono bg-background"
+                          data-testid="input-price"
+                        />
+                        <p className="text-xs text-muted-foreground">
+                          {t("price.hint")}
+                        </p>
+                      </div>
                       <div className="space-y-2">
                         <Label htmlFor="unitId">
                           {t("itemDetail.unitOfMeasure")}
@@ -592,6 +620,17 @@ export default function ItemDetailPage() {
                         <span className="text-sm font-sans font-normal text-muted-foreground">
                           {displayUnit}
                         </span>
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center pb-4 border-b border-border border-dashed">
+                      <span className="text-muted-foreground text-sm">
+                        {t("price.label")}
+                      </span>
+                      <span
+                        className="font-mono text-sm"
+                        data-testid="text-item-price"
+                      >
+                        {formatPrice(item.price) ?? "—"}
                       </span>
                     </div>
                     <div className="flex justify-between items-center pb-4 border-b border-border border-dashed">

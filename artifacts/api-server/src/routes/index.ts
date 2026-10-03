@@ -8,6 +8,7 @@ import dashboardRouter from "./dashboard";
 import adminRouter from "./admin";
 import unitsRouter from "./units";
 import shoppingListRouter from "./shopping-list";
+import dataTransferRouter from "./data-transfer";
 
 const router: IRouter = Router();
 
@@ -20,5 +21,6 @@ router.use(unitsRouter);
 router.use(dashboardRouter);
 router.use(adminRouter);
 router.use(shoppingListRouter);
+router.use(dataTransferRouter);
 
 export default router;

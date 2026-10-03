@@ -5,6 +5,161 @@
  * Inventory management API
  * OpenAPI spec version: 0.1.0
  */
+export interface TransferFileInput {
+  /** @maxLength 255 */
+  fileName: string;
+  /**
+     * Base64 encoded file, maximum 5 MiB decoded
+     * @maxLength 6990508
+     */
+  content: string;
+}
+
+export interface TransferCounts {
+  items: number;
+  categories: number;
+  locations: number;
+  units: number;
+  shoppingList: number;
+}
+
+export interface TransferCategory {
+  id: number;
+  name: string;
+  /** @nullable */
+  parentId?: number | null;
+  /** @nullable */
+  description?: string | null;
+  /** @nullable */
+  color?: string | null;
+  /** @nullable */
+  icon?: string | null;
+  createdAt?: string;
+}
+
+export interface TransferLocation {
+  id: number;
+  name: string;
+  /** @nullable */
+  description?: string | null;
+  /** @nullable */
+  icon?: string | null;
+  createdAt?: string;
+}
+
+export interface TransferUnit {
+  id: number;
+  name: string;
+  symbol: string;
+}
+
+export interface CreateItemBody {
+  name: string;
+  /** @nullable */
+  description?: string | null;
+  quantity: number;
+  /**
+     * @minimum 0
+     * @maximum 999999999999.99
+     * @nullable
+     */
+  price?: number | null;
+  /** @nullable */
+  photoUrl?: string | null;
+  /** @nullable */
+  unitId?: number | null;
+  /** @nullable */
+  unit?: string | null;
+  /** @nullable */
+  locationId?: number | null;
+  /** @nullable */
+  location?: string | null;
+  /** @nullable */
+  sku?: string | null;
+  /** @nullable */
+  barcode?: string | null;
+  /** @nullable */
+  tags?: string | null;
+  /** @nullable */
+  notes?: string | null;
+  /** @nullable */
+  categoryId?: number | null;
+}
+
+export type TransferItem = CreateItemBody & {
+  id: number;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
+export interface TransferShoppingEntry {
+  id: number;
+  name: string;
+  quantity: number;
+  checked: boolean;
+  /** @nullable */
+  itemId?: number | null;
+  /** @nullable */
+  unit?: string | null;
+  /** @nullable */
+  note?: string | null;
+  createdAt?: string;
+}
+
+export type TransferBundleFormat = typeof TransferBundleFormat[keyof typeof TransferBundleFormat];
+
+
+export const TransferBundleFormat = {
+  stockkeeper: 'stockkeeper',
+} as const;
+
+export type TransferBundleVersion = typeof TransferBundleVersion[keyof typeof TransferBundleVersion];
+
+
+export const TransferBundleVersion = {
+  NUMBER_1: 1,
+} as const;
+
+export interface TransferBundle {
+  format: TransferBundleFormat;
+  version: TransferBundleVersion;
+  exportedAt?: string;
+  /** @maxItems 10000 */
+  categories: TransferCategory[];
+  /** @maxItems 10000 */
+  locations: TransferLocation[];
+  /** @maxItems 10000 */
+  units: TransferUnit[];
+  /** @maxItems 10000 */
+  items: TransferItem[];
+  /** @maxItems 10000 */
+  shoppingList: TransferShoppingEntry[];
+}
+
+export interface TransferPreview {
+  data: TransferBundle;
+  counts: TransferCounts;
+  warnings: string[];
+}
+
+export type TransferImportInputMode = typeof TransferImportInputMode[keyof typeof TransferImportInputMode];
+
+
+export const TransferImportInputMode = {
+  skip: 'skip',
+  add: 'add',
+} as const;
+
+export interface TransferImportInput {
+  data: TransferBundle;
+  mode: TransferImportInputMode;
+}
+
+export interface TransferImportResult {
+  created: TransferCounts;
+  skipped: number;
+}
+
 export interface HealthStatus {
   status: string;
 }
@@ -125,6 +280,12 @@ export interface Item {
   /** @nullable */
   description: string | null;
   quantity: number;
+  /**
+     * @minimum 0
+     * @maximum 999999999999.99
+     * @nullable
+     */
+  price?: number | null;
   /** @nullable */
   photoUrl?: string | null;
   /** @nullable */
@@ -158,38 +319,17 @@ export interface Item {
   updatedAt: string;
 }
 
-export interface CreateItemBody {
-  name: string;
-  /** @nullable */
-  description?: string | null;
-  quantity: number;
-  /** @nullable */
-  photoUrl?: string | null;
-  /** @nullable */
-  unitId?: number | null;
-  /** @nullable */
-  unit?: string | null;
-  /** @nullable */
-  locationId?: number | null;
-  /** @nullable */
-  location?: string | null;
-  /** @nullable */
-  sku?: string | null;
-  /** @nullable */
-  barcode?: string | null;
-  /** @nullable */
-  tags?: string | null;
-  /** @nullable */
-  notes?: string | null;
-  /** @nullable */
-  categoryId?: number | null;
-}
-
 export interface UpdateItemBody {
   name?: string;
   /** @nullable */
   description?: string | null;
   quantity?: number;
+  /**
+     * @minimum 0
+     * @maximum 999999999999.99
+     * @nullable
+     */
+  price?: number | null;
   /** @nullable */
   photoUrl?: string | null;
   /** @nullable */
@@ -266,6 +406,18 @@ export interface ResetPasswordBody {
   /** @minLength 8 */
   password: string;
 }
+
+export type ExportDataParams = {
+format: ExportDataFormat;
+};
+
+export type ExportDataFormat = typeof ExportDataFormat[keyof typeof ExportDataFormat];
+
+
+export const ExportDataFormat = {
+  json: 'json',
+  xlsx: 'xlsx',
+} as const;
 
 export type ListItemsParams = {
 categoryId?: number;

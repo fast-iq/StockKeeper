@@ -8,7 +8,7 @@
     "typecheck:libs": "tsc --build",
     "typecheck": "pnpm run typecheck:libs && pnpm -r --filter \"./artifacts/**\" --filter \"./scripts\" --if-present run typecheck",
     "lint": "eslint . --max-warnings=0",
-    "test": "pnpm --filter @workspace/api-server run test:google-auth",
+    "test": "pnpm --filter @workspace/api-server run test:google-auth && pnpm --filter @workspace/api-server run test:data-transfer && pnpm --filter @workspace/api-server run test:session-cookie",
     "format": "prettier --write .",
     "format:check": "prettier --check ."
   },
