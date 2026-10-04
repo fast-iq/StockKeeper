@@ -5,6 +5,21 @@ import LanguageDetector from "i18next-browser-languagedetector";
 import en from "./locales/en.json";
 import ru from "./locales/ru.json";
 
+export type LanguagePreference = "en" | "ru" | "auto";
+
+export function getLanguagePreference(): LanguagePreference {
+  const stored = localStorage.getItem("sk_language");
+  return stored === "en" || stored === "ru" ? stored : "auto";
+}
+
+function browserLanguage(): "en" | "ru" {
+  for (const locale of navigator.languages) {
+    const language = locale.split("-")[0];
+    if (language === "en" || language === "ru") return language;
+  }
+  return "en";
+}
+
 i18n
   .use(LanguageDetector)
   .use(initReactI18next)
@@ -16,9 +31,13 @@ i18n
     fallbackLng: "en",
     supportedLngs: ["en", "ru"],
     detection: {
-      order: ["localStorage", "navigator"],
+      order:
+        getLanguagePreference() === "auto"
+          ? ["navigator"]
+          : ["localStorage", "navigator"],
       lookupLocalStorage: "sk_language",
-      caches: ["localStorage"],
+      // Store the preference, not the language resolved from an auto choice.
+      caches: [],
     },
     interpolation: {
       escapeValue: false,
@@ -27,7 +46,7 @@ i18n
 
 export default i18n;
 
-export function setLanguage(lang: "en" | "ru") {
-  i18n.changeLanguage(lang);
+export function setLanguage(lang: LanguagePreference) {
   localStorage.setItem("sk_language", lang);
+  void i18n.changeLanguage(lang === "auto" ? browserLanguage() : lang);
 }

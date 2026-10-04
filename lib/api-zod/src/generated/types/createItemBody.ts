@@ -7,6 +7,8 @@
  */
 
 export interface CreateItemBody {
+  /** @minimum 1 */
+  copySourceId?: number;
   name: string;
   /** @nullable */
   description?: string | null;

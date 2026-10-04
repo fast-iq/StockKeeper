@@ -9,6 +9,7 @@ import {
 } from "@workspace/api-client-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { BarcodeInput } from "@/components/BarcodeInput";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -68,7 +69,7 @@ type CopySource = {
   description: string | null;
   photoUrl: string | null;
   quantity: number;
-  price: number | null;
+  legacyPrice: number | null;
   unitId: number | null;
   locationId: number | null;
   location: string | null;
@@ -91,6 +92,10 @@ function NewItemForm({
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const createItem = useCreateItem();
+  const copyId = isCopy
+    ? Number(new URLSearchParams(window.location.search).get("copyFrom")) ||
+      undefined
+    : undefined;
   const units = useUnits();
   const storageLocations = useStorageLocations();
 
@@ -133,6 +138,7 @@ function NewItemForm({
     const locationIdVal = formData.get("locationId");
 
     const data = {
+      ...(copyId ? { copySourceId: copyId } : {}),
       name: formData.get("name") as string,
       description: (formData.get("description") as string) || null,
       photoUrl: (formData.get("photoUrl") as string) || null,
@@ -230,6 +236,10 @@ function NewItemForm({
                 />
               </div>
               <div className="space-y-2">
+                <Label htmlFor="barcode">{t("itemNew.barcodeData")}</Label>
+                <BarcodeInput defaultValue={copySource?.barcode ?? ""} />
+              </div>
+              <div className="space-y-2">
                 <Label htmlFor="categoryId">{t("itemNew.category")}</Label>
                 <Select
                   name="categoryId"
@@ -289,19 +299,19 @@ function NewItemForm({
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="price">{t("price.label")}</Label>
+                <Label htmlFor="price">{t("price.legacyLabel")}</Label>
                 <Input
                   id="price"
                   name="price"
                   type="text"
                   inputMode="decimal"
-                  defaultValue={copySource?.price?.toString() ?? ""}
+                  defaultValue={copySource?.legacyPrice?.toString() ?? ""}
                   placeholder={t("price.placeholder")}
                   className="font-mono bg-background"
                   data-testid="input-price"
                 />
                 <p className="text-xs text-muted-foreground">
-                  {t("price.hint")}
+                  {t("prices.addAfterSave")}
                 </p>
               </div>
               <div className="space-y-2">
@@ -405,16 +415,6 @@ function NewItemForm({
                 )}
               </div>
               <div className="space-y-2">
-                <Label htmlFor="barcode">{t("itemNew.barcodeData")}</Label>
-                <Input
-                  id="barcode"
-                  name="barcode"
-                  defaultValue={copySource?.barcode ?? ""}
-                  placeholder={t("itemNew.barcodePlaceholder")}
-                  className="font-mono bg-background"
-                />
-              </div>
-              <div className="space-y-2">
                 <Label htmlFor="notes">{t("itemNew.extendedNotes")}</Label>
                 <Textarea
                   id="notes"
@@ -471,7 +471,7 @@ export default function NewItemPage() {
             description: item.description,
             photoUrl: item.photoUrl,
             quantity: item.quantity,
-            price: item.price ?? null,
+            legacyPrice: item.legacyPrice ?? null,
             unitId: item.unitId,
             locationId: item.locationId,
             location: item.location,

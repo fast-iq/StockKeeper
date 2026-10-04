@@ -47,6 +47,7 @@ function fixture() {
         quantity: 15,
         price: 9.37,
         sku: "00125",
+        barcode: "0012345678905",
         categoryId: 92,
         unitId: 99,
         locationId: 93,
@@ -67,6 +68,101 @@ function fixture() {
   };
 }
 
+test("version 2 JSON and Excel preserve dated shop price history", async () => {
+  const input = fixture();
+  input.version = 2;
+  input.shops = [
+    { id: 10, name: "Магазин А" },
+    { id: 11, name: "Магазин Б" },
+  ];
+  input.prices = [
+    {
+      id: 101,
+      itemId: input.items[0].id,
+      shopId: 10,
+      price: 100,
+      priceDate: "2026-01-01",
+      createdAt: "2026-01-02T10:00:00Z",
+    },
+    {
+      id: 102,
+      itemId: input.items[0].id,
+      shopId: 10,
+      price: 150,
+      priceDate: "2026-10-01",
+    },
+    {
+      id: 103,
+      itemId: input.items[0].id,
+      shopId: 11,
+      price: 120,
+      priceDate: "2026-09-01",
+    },
+  ];
+  const parsed = validation.validateBundle(input);
+  assert.deepEqual(parsed.prices, input.prices);
+  const restored = (await excel.readExcel(await excel.writeExcel(parsed))).data;
+  assert.deepEqual(restored.shops, input.shops);
+  assert.deepEqual(restored.prices, input.prices);
+});
+test("legacy version 1 JSON without shops remains supported", () => {
+  const input = fixture();
+  input.version = 1;
+  delete input.shops;
+  delete input.prices;
+  assert.equal(validation.validateBundle(input).version, 1);
+});
+test("skip matching preserves distinct source items and repeated price entries one-to-one", () => {
+  const empty = validation.availableMatches([], (r) => r.name);
+  assert.equal(empty("Same"), undefined);
+  assert.equal(empty("Same"), undefined);
+  const take = validation.availableMatches(
+    [
+      { id: 11, name: "Same" },
+      { id: 12, name: "Same" },
+    ],
+    (r) => r.name,
+  );
+  assert.equal(take("Same").id, 11);
+  assert.equal(take("Same").id, 12);
+  assert.equal(take("Same"), undefined);
+  const one = validation.availableMatches(
+    [{ id: 20, name: "Same" }],
+    (r) => r.name,
+  );
+  assert.equal(one("Same").id, 20);
+  assert.equal(one("Same"), undefined);
+});
+test("backup rejects orphan prices, impossible dates and duplicate shop identities", () => {
+  const base = fixture();
+  base.shops = [{ id: 10, name: "Магазин А" }];
+  const price = {
+    id: 101,
+    itemId: base.items[0].id,
+    shopId: 10,
+    price: 100,
+    priceDate: "2026-10-01",
+  };
+  assert.throws(() =>
+    validation.validateBundle({ ...base, prices: [{ ...price, shopId: 999 }] }),
+  );
+  assert.throws(() =>
+    validation.validateBundle({ ...base, prices: [{ ...price, itemId: 999 }] }),
+  );
+  assert.throws(() =>
+    validation.validateBundle({
+      ...base,
+      prices: [{ ...price, priceDate: "2026-02-30" }],
+    }),
+  );
+  assert.throws(() =>
+    validation.validateBundle({
+      ...base,
+      shops: [...base.shops, { id: 11, name: " магазин   а " }],
+    }),
+  );
+});
+
 test("JSON retains decimal price, relations and strips user ownership", () => {
   const f = fixture();
   f.items[0].userId = 12345;
@@ -79,7 +175,9 @@ test("JSON retains decimal price, relations and strips user ownership", () => {
 });
 
 test("unsupported backup versions rejected", () => {
-  assert.throws(() => validation.validateBundle({ ...fixture(), version: 2 }));
+  assert.throws(() =>
+    validation.validateBundle({ ...fixture(), version: 999 }),
+  );
 });
 
 test("dangling and foreign source references rejected", () => {
@@ -129,6 +227,7 @@ test("XLSX round trip preserves prices, leading-zero SKU, tags and hierarchical 
   const { data } = await excel.readExcel(buffer);
   assert.equal(data.items[0].price, 9.37);
   assert.equal(data.items[0].sku, "00125");
+  assert.equal(data.items[0].barcode, "0012345678905");
   assert.equal(data.items[0].name, "=SUM(1,2)");
   assert.equal(data.items[0].tags, "DIN 933, А2");
   assert.equal(data.categories[1].parentId, data.categories[0].id);

@@ -10,6 +10,8 @@ yarn.lock
 # generated code (orval / mockup-sandbox build) — форматируется генератором
 **/generated/**
 **/.generated/**
+# Drizzle Kit generates these metadata files; do not reformat them.
+lib/db/migrations/meta/
 
 .agents
 .cache

@@ -4,6 +4,23 @@
     "tagline": "Precision inventory management",
     "version": "v1.0"
   },
+  "barcodeScanner": {
+    "scan": "Scan barcode",
+    "title": "Scan a barcode",
+    "hint": "Point the rear camera at the barcode. Hold your phone steady and use good lighting.",
+    "preview": "Camera preview",
+    "starting": "Starting camera…",
+    "scanning": "The recognized barcode will be filled in automatically.",
+    "privacy": "Recognition runs on your device. Video is not sent to the server.",
+    "manual": "Close and enter manually",
+    "retry": "Retry",
+    "permissionDenied": "Camera access is blocked. Allow it in your browser settings. If the app is embedded, open it in a separate tab. You can also enter the barcode manually.",
+    "noCamera": "No camera found. Enter the barcode manually.",
+    "cameraBusy": "The camera is unavailable or busy in another app. Close that app and try again.",
+    "httpsRequired": "Camera access requires a secure HTTPS connection. Enter the barcode manually.",
+    "unsupported": "This browser does not support camera access. Use another browser or enter the barcode manually.",
+    "failed": "The camera could not start or was disconnected. Retry or enter the barcode manually."
+  },
   "nav": {
     "overview": "Overview",
     "inventory": "Inventory",
@@ -229,6 +246,12 @@
     "languageDescription": "Choose the interface language",
     "languageRu": "Russian",
     "languageEn": "English",
+    "languageAuto": "Automatic",
+    "languageAutoHint": "Use browser language",
+    "saveFailed": "Could not save language. Try again.",
+    "languageUnverified": "The connection was lost. The language may already be saved. Restore your connection and check the saved language.",
+    "languageVerified": "Saved language checked with the server.",
+    "verifyLanguage": "Check saved language",
     "save": "Save",
     "saved": "Settings saved",
     "savedDescription": "Your preferences have been updated.",
@@ -257,7 +280,8 @@
     "invalid": "Enter a valid price",
     "tooManyDecimals": "Price allows at most 2 decimal places",
     "outOfRange": "Price must be between 0 and 999999999999.99",
-    "title": "Invalid price"
+    "title": "Invalid price",
+    "legacyLabel": "Legacy price"
   },
   "exchange": {
     "title": "Data export and import",
@@ -300,6 +324,47 @@
     "importing": "Importing...",
     "importFailed": "Import failed. The preview is kept; you can retry.",
     "imported": "Import complete",
-    "skipped": "Skipped matching records: {{count}}"
+    "skipped": "Skipped matching records: {{count}}",
+    "shops": "Shops",
+    "prices": "Prices"
+  },
+  "prices": {
+    "title": "Shop prices",
+    "add": "Add price",
+    "shop": "Shop",
+    "chooseShop": "Choose shop",
+    "newShop": "New shop",
+    "shopName": "Shop name",
+    "amount": "Price",
+    "date": "Date",
+    "save": "Save",
+    "cancel": "Cancel",
+    "edit": "Edit",
+    "delete": "Delete",
+    "confirmDelete": "Delete?",
+    "empty": "No dated prices yet. Add the first one.",
+    "legacy": "Legacy price (no shop/date)",
+    "loadFailed": "Could not load prices",
+    "retry": "Retry",
+    "saveFailed": "Could not save price",
+    "deleteFailed": "Could not delete price",
+    "amountRequired": "Enter a price",
+    "dateRequired": "Choose a date",
+    "shopRequired": "Choose or name a shop",
+    "selected": "{{shop}}, {{date}}",
+    "legacyLabel": "Legacy price",
+    "addAfterSave": "Add dated shop prices after saving."
+  },
+  "priceSettings": {
+    "title": "Price display",
+    "description": "Which price is shown for items with several shop prices. Applies to the cheapest or newest of each shop's latest price.",
+    "lowest": "Cheapest of latest per shop",
+    "lowestHint": "Takes each shop's newest price, shows the lowest.",
+    "latest": "Most recent price",
+    "latestHint": "Shows the newest dated price overall.",
+    "save": "Save display mode",
+    "saved": "Price display saved",
+    "saveFailed": "Could not save",
+    "loadFailed": "Could not load settings"
   }
 }

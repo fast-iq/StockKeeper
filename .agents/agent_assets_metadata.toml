@@ -1,0 +1,16 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "KgNmFK1ppx1o8av8VKO6h"
+uri = "file://attached_assets/metrika-import.xlsx"
+type = "table"
+title = "Метрика — файл для импорта"
+description = "Исключена только строка 13 листа «М3» с остатком «много > 60». Исходник не изменён. Проверка импортера пройдена: 81 запись товара, 7 позиций покупок, 2 места хранения."
+logical_id = "6b74cc19-dfda-4b09-9ce5-4613ffabce04"
+content_hash = "sha256:d0a0ed33a0bb8ecce552f4ba3a33a8b84f0541376ce4e6cbf7c4ccc599880de1"
+size = 20631
+mtime_ms = 1790975391501
+storage_uri = "gcs://replit-rams-assets-pike/rams/assets/repl:92c6f9af-3f69-4382-b4c5-7d5c2fe29a54/6b74cc19-dfda-4b09-9ce5-4613ffabce04/4be06660-7e74-4a73-b6f2-baf3baebe9ba"
+storage_version_token = "1790975398870359"
+content_type = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"

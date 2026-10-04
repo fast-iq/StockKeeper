@@ -23,14 +23,20 @@
 - `pnpm run typecheck` — full typecheck across all packages
 - `pnpm run build` — typecheck + build all packages
 - `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from OpenAPI spec
-- `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
+- `pnpm --filter @workspace/db run generate` — generate a reviewed SQL migration from the Drizzle schema
+- `pnpm --filter @workspace/db run migrate` — apply pending migrations to Development only
 - `pnpm --filter @workspace/api-server run dev` — run API server locally
 
 ## DB Schema
 
 - **users** — id, email, password_hash, name, language, is_admin, created_at
 - **categories** — id, name, description, parent_id (self-ref), user_id, color, icon, created_at
-- **items** — id, name, description, quantity, unit, location, sku, barcode, tags, notes, category_id, user_id, created_at, updated_at
+- **items** — id, name, description, quantity, price, unit, location, sku, barcode, tags, notes, category_id, user_id, created_at, updated_at
+- **shops**, **item_prices**, **price_settings** — per-user shop names, dated item-price history, and price display settings
+
+Schema changes are tracked in `lib/db/migrations`. Post-merge applies them to Development.
+The Production API applies pending migrations at startup using `EXTERNAL_DB_URL` only and
+fails closed if that Publishing secret is unavailable; it never falls back to `DATABASE_URL`.
 
 ## API Endpoints
 
@@ -57,6 +63,7 @@
 ## Environment Variables Required
 
 - `SESSION_SECRET` — secret for express-session cookie signing (already set)
-- `DATABASE_URL` — PostgreSQL connection string (auto-provisioned)
+- `DATABASE_URL` — Replit-managed Development PostgreSQL connection string
+- `EXTERNAL_DB_URL` — external PostgreSQL connection string configured in Publishing for Production
 
 See the `pnpm-workspace` skill for workspace structure, TypeScript setup, and package details.

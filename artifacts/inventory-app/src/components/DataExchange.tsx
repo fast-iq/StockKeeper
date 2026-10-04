@@ -152,7 +152,14 @@ export function DataExchange() {
     ["locations", "exchange.locations"],
     ["units", "exchange.units"],
     ["shoppingList", "exchange.shopping"],
+    ["shops", "exchange.shops"],
+    ["prices", "exchange.prices"],
   ];
+  const priceSample = preview?.data.prices?.slice(0, 8) ?? [];
+  const shopName = (id: number) =>
+    preview?.data.shops?.find((s) => s.id === id)?.name ?? `#${id}`;
+  const itemName = (id: number) =>
+    preview?.data.items.find((i) => i.id === id)?.name ?? `#${id}`;
   const sample = preview?.data.items.slice(0, 8) ?? [];
   const shoppingSample = preview?.data.shoppingList.slice(0, 8) ?? [];
   const categoryById = new Map(
@@ -287,7 +294,7 @@ export function DataExchange() {
               <div className="font-medium">{t("exchange.imported")}</div>
               <div className="text-muted-foreground">
                 {countRows
-                  .map(([k, l]) => `${t(l)}: ${result.created[k]}`)
+                  .map(([k, l]) => `${t(l)}: ${result.created[k] ?? 0}`)
                   .join(" · ")}
               </div>
               <div className="text-muted-foreground">
@@ -304,14 +311,14 @@ export function DataExchange() {
               <h4 className="font-semibold text-sm">
                 {t("exchange.previewTitle")}
               </h4>
-              <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                 {countRows.map(([k, l]) => (
                   <div
                     key={k}
                     className="rounded-md border border-border bg-card px-3 py-2"
                   >
                     <div className="font-mono text-lg font-bold">
-                      {preview.counts[k]}
+                      {preview.counts[k] ?? 0}
                     </div>
                     <div className="text-xs text-muted-foreground">{t(l)}</div>
                   </div>
@@ -412,6 +419,30 @@ export function DataExchange() {
                             {entry.note}
                           </p>
                         )}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {priceSample.length > 0 && (
+                <div className="space-y-1" data-testid="list-import-prices">
+                  <h5 className="text-sm font-medium">
+                    {t("exchange.prices")}
+                  </h5>
+                  <ul className="divide-y divide-border rounded-md border border-border bg-card">
+                    {priceSample.map((p, i) => (
+                      <li key={i} className="px-3 py-2 text-sm">
+                        <div className="flex justify-between gap-3">
+                          <span className="min-w-0 break-words">
+                            {itemName(p.itemId)}
+                          </span>
+                          <span className="shrink-0 font-mono">
+                            {formatPrice(p.price)}
+                          </span>
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          {shopName(p.shopId)} · {p.priceDate.slice(0, 10)}
+                        </div>
                       </li>
                     ))}
                   </ul>

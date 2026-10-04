@@ -11,4 +11,5 @@ export type TransferBundleVersion = typeof TransferBundleVersion[keyof typeof Tr
 
 export const TransferBundleVersion = {
   NUMBER_1: 1,
+  NUMBER_2: 2,
 } as const;

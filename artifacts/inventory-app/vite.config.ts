@@ -56,6 +56,9 @@ export default defineConfig({
           if (!id.includes("node_modules")) {
             return undefined;
           }
+          if (/[\\/]node_modules[\\/]@zxing[\\/]/.test(id)) {
+            return "barcode";
+          }
           if (
             /[\\/]node_modules[\\/](react|react-dom|scheduler)[\\/]/.test(id)
           ) {

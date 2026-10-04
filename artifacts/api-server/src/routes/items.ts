@@ -5,6 +5,7 @@ import {
   categoriesTable,
   unitsTable,
   locationsTable,
+  itemPricesTable,
 } from "@workspace/db";
 import { eq, and, like, inArray, or, isNull } from "drizzle-orm";
 import {
@@ -17,6 +18,7 @@ import {
 } from "@workspace/api-zod";
 import { requireAuth } from "../middlewares/auth";
 import { validPrice } from "../services/transfer-validation";
+import { withSelectedPrices } from "../services/item-prices";
 
 const router: IRouter = Router();
 
@@ -244,6 +246,7 @@ router.get("/items", requireAuth, async (req, res): Promise<void> => {
               like(itemsTable.name, `%${search}%`),
               like(itemsTable.description, `%${search}%`),
               like(itemsTable.sku, `%${search}%`),
+              like(itemsTable.barcode, `%${search}%`),
               like(itemsTable.tags, `%${search}%`),
             )
           : undefined,
@@ -251,7 +254,7 @@ router.get("/items", requireAuth, async (req, res): Promise<void> => {
     )
     .orderBy(itemsTable.name);
 
-  res.json(rows.map(serializeItem));
+  res.json(await withSelectedPrices(userId, rows.map(serializeItem)));
 });
 
 router.post("/items", requireAuth, async (req, res): Promise<void> => {
@@ -276,10 +279,50 @@ router.post("/items", requireAuth, async (req, res): Promise<void> => {
     return;
   }
 
-  const [item] = await db
-    .insert(itemsTable)
-    .values({ ...parsed.data, userId })
-    .returning();
+  const { copySourceId, ...values } = parsed.data;
+  if (copySourceId != null && copySourceId > 2147483647) {
+    res.status(400).json({ error: "Invalid copy source ID" });
+    return;
+  }
+  const item = await db.transaction(async (tx) => {
+    if (copySourceId != null) {
+      const [source] = await tx
+        .select({ id: itemsTable.id })
+        .from(itemsTable)
+        .where(
+          and(eq(itemsTable.id, copySourceId), eq(itemsTable.userId, userId)),
+        )
+        .for("key share");
+      if (!source) return null;
+    }
+    const [created] = await tx
+      .insert(itemsTable)
+      .values({ ...values, userId })
+      .returning();
+    if (copySourceId != null) {
+      const prices = await tx
+        .select()
+        .from(itemPricesTable)
+        .where(
+          and(
+            eq(itemPricesTable.itemId, copySourceId),
+            eq(itemPricesTable.userId, userId),
+          ),
+        )
+        .orderBy(itemPricesTable.id);
+      if (prices.length)
+        await tx
+          .insert(itemPricesTable)
+          .values(
+            prices.map(({ id: _id, ...p }) => ({ ...p, itemId: created!.id })),
+          );
+    }
+    return created!;
+  });
+  if (!item) {
+    res.status(404).json({ error: "Copy source not found" });
+    return;
+  }
 
   let categoryName: string | null = null;
   if (item.categoryId) {
@@ -298,13 +341,17 @@ router.post("/items", requireAuth, async (req, res): Promise<void> => {
   const { unitSymbol, unitName } = await resolveUnit(item.unitId);
   const { locationName } = await resolveLocation(item.locationId);
   res.status(201).json(
-    serializeItem({
-      ...item,
-      categoryName,
-      unitSymbol,
-      unitName,
-      locationName,
-    }),
+    (
+      await withSelectedPrices(userId, [
+        serializeItem({
+          ...item,
+          categoryName,
+          unitSymbol,
+          unitName,
+          locationName,
+        }),
+      ])
+    )[0],
   );
 });
 
@@ -372,7 +419,7 @@ router.get("/items/:id", requireAuth, async (req, res): Promise<void> => {
     return;
   }
 
-  res.json(serializeItem(row));
+  res.json((await withSelectedPrices(userId, [serializeItem(row)]))[0]);
 });
 
 router.patch("/items/:id", requireAuth, async (req, res): Promise<void> => {
@@ -433,13 +480,17 @@ router.patch("/items/:id", requireAuth, async (req, res): Promise<void> => {
   const { unitSymbol, unitName } = await resolveUnit(item.unitId);
   const { locationName } = await resolveLocation(item.locationId);
   res.json(
-    serializeItem({
-      ...item,
-      categoryName,
-      unitSymbol,
-      unitName,
-      locationName,
-    }),
+    (
+      await withSelectedPrices(userId, [
+        serializeItem({
+          ...item,
+          categoryName,
+          unitSymbol,
+          unitName,
+          locationName,
+        }),
+      ])
+    )[0],
   );
 });
 

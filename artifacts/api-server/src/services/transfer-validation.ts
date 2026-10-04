@@ -1,22 +1,42 @@
 import { ImportDataBody } from "@workspace/api-zod";
 import type { z } from "zod";
+import { validPriceDate, shopKey } from "./price-selection";
 
 export type TransferBundle = z.infer<typeof ImportDataBody>["data"];
 export type TransferCounts = Record<
   "items" | "categories" | "locations" | "units" | "shoppingList",
   number
->;
+> & { shops?: number; prices?: number };
 export class TransferError extends Error {}
+
+/** Match existing records one-to-one, never collapsing distinct source IDs in the same backup. */
+export function availableMatches<T>(rows: T[], identity: (row: T) => string) {
+  const groups = new Map<string, T[]>();
+  const offsets = new Map<string, number>();
+  for (const row of rows) {
+    const key = identity(row);
+    const group = groups.get(key) ?? [];
+    group.push(row);
+    groups.set(key, group);
+  }
+  return (key: string): T | undefined => {
+    const offset = offsets.get(key) ?? 0;
+    offsets.set(key, offset + 1);
+    return groups.get(key)?.[offset];
+  };
+}
 
 export function emptyBundle(): TransferBundle {
   return {
     format: "stockkeeper",
-    version: 1,
+    version: 2,
     categories: [],
     locations: [],
     units: [],
     items: [],
     shoppingList: [],
+    shops: [],
+    prices: [],
   };
 }
 
@@ -27,6 +47,8 @@ export function counts(data: TransferBundle): TransferCounts {
     locations: data.locations.length,
     units: data.units.length,
     shoppingList: data.shoppingList.length,
+    ...((data.shops?.length ?? 0) > 0 ? { shops: data.shops!.length } : {}),
+    ...((data.prices?.length ?? 0) > 0 ? { prices: data.prices!.length } : {}),
   };
 }
 
@@ -54,6 +76,8 @@ export function validateBundle(input: unknown): TransferBundle {
     data.units,
     data.items,
     data.shoppingList,
+    data.shops ?? [],
+    data.prices ?? [],
   ];
   if (tables.reduce((sum, rows) => sum + rows.length, 0) > 15000) {
     throw new TransferError("Максимум 15 000 записей в одном файле.");
@@ -72,7 +96,7 @@ export function validateBundle(input: unknown): TransferBundle {
         );
       }
       ids.add(row.id);
-      if (!row.name.trim() || row.name.length > 500) {
+      if ("name" in row && (!row.name.trim() || row.name.length > 500)) {
         throw new TransferError(
           "Название обязательно и не должно превышать 500 символов.",
         );
@@ -100,6 +124,16 @@ export function validateBundle(input: unknown): TransferBundle {
   const locIds = new Set(data.locations.map((l) => l.id));
   const unitIds = new Set(data.units.map((u) => u.id));
   const itemIds = new Set(data.items.map((i) => i.id));
+  const shopIds = new Set((data.shops ?? []).map((s) => s.id));
+  const keys = new Set<string>();
+  for (const shop of data.shops ?? []) {
+    const key = shopKey(shop.name);
+    if (!key || shop.name.length > 120 || keys.has(key))
+      throw new TransferError(
+        "Магазины должны иметь уникальные непустые названия до 120 символов.",
+      );
+    keys.add(key);
+  }
   const assertRef = (
     value: number | null | undefined,
     ids: Set<number>,
@@ -142,6 +176,12 @@ export function validateBundle(input: unknown): TransferBundle {
   for (const entry of data.shoppingList) {
     quantity(entry.quantity);
     assertRef(entry.itemId, itemIds, "товар списка покупок");
+  }
+  for (const price of data.prices ?? []) {
+    assertRef(price.itemId, itemIds, "товар цены");
+    assertRef(price.shopId, shopIds, "магазин цены");
+    if (!validPrice(price.price) || !validPriceDate(price.priceDate))
+      throw new TransferError("Некорректная сумма или дата цены.");
   }
   return data;
 }

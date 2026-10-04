@@ -8,6 +8,160 @@
 import * as zod from 'zod';
 
 
+export const GetPriceSettingsResponse = zod.object({
+  "mode": zod.enum(['lowest', 'latest'])
+})
+
+
+export const UpdatePriceSettingsBody = zod.object({
+  "mode": zod.enum(['lowest', 'latest'])
+})
+
+export const UpdatePriceSettingsResponse = zod.object({
+  "mode": zod.enum(['lowest', 'latest'])
+})
+
+
+export const ListShopsResponseItem = zod.object({
+  "id": zod.number(),
+  "name": zod.string()
+})
+export const ListShopsResponse = zod.array(ListShopsResponseItem)
+
+
+export const createShopBodyNameMax = 120;
+
+
+
+export const CreateShopBody = zod.object({
+  "name": zod.string().min(1).max(createShopBodyNameMax)
+})
+
+export const CreateShopResponse = zod.object({
+  "id": zod.number(),
+  "name": zod.string()
+})
+
+
+
+
+
+export const ListItemPricesParams = zod.object({
+  "id": zod.coerce.number().min(1)
+})
+
+
+export const listItemPricesResponseOnePriceMin = 0;
+export const listItemPricesResponseOnePriceMax = 999999999999.99;
+
+export const listItemPricesResponseOnePriceDateRegExp = new RegExp('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
+
+
+export const ListItemPricesResponseItem = zod.object({
+  "shopId": zod.number().min(1),
+  "price": zod.number().min(listItemPricesResponseOnePriceMin).max(listItemPricesResponseOnePriceMax),
+  "priceDate": zod.string().regex(listItemPricesResponseOnePriceDateRegExp)
+}).and(zod.object({
+  "id": zod.number(),
+  "itemId": zod.number(),
+  "shopName": zod.string(),
+  "createdAt": zod.coerce.date()
+}))
+export const ListItemPricesResponse = zod.array(ListItemPricesResponseItem)
+
+
+
+
+
+export const CreateItemPriceParams = zod.object({
+  "id": zod.coerce.number().min(1)
+})
+
+
+export const createItemPriceBodyPriceMin = 0;
+export const createItemPriceBodyPriceMax = 999999999999.99;
+
+export const createItemPriceBodyPriceDateRegExp = new RegExp('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
+
+
+export const CreateItemPriceBody = zod.object({
+  "shopId": zod.number().min(1),
+  "price": zod.number().min(createItemPriceBodyPriceMin).max(createItemPriceBodyPriceMax),
+  "priceDate": zod.string().regex(createItemPriceBodyPriceDateRegExp)
+})
+
+
+export const createItemPriceResponseOnePriceMin = 0;
+export const createItemPriceResponseOnePriceMax = 999999999999.99;
+
+export const createItemPriceResponseOnePriceDateRegExp = new RegExp('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
+
+
+export const CreateItemPriceResponse = zod.object({
+  "shopId": zod.number().min(1),
+  "price": zod.number().min(createItemPriceResponseOnePriceMin).max(createItemPriceResponseOnePriceMax),
+  "priceDate": zod.string().regex(createItemPriceResponseOnePriceDateRegExp)
+}).and(zod.object({
+  "id": zod.number(),
+  "itemId": zod.number(),
+  "shopName": zod.string(),
+  "createdAt": zod.coerce.date()
+}))
+
+
+
+
+
+
+export const UpdateItemPriceParams = zod.object({
+  "id": zod.coerce.number().min(1),
+  "priceId": zod.coerce.number().min(1)
+})
+
+
+export const updateItemPriceBodyPriceMin = 0;
+export const updateItemPriceBodyPriceMax = 999999999999.99;
+
+export const updateItemPriceBodyPriceDateRegExp = new RegExp('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
+
+
+export const UpdateItemPriceBody = zod.object({
+  "shopId": zod.number().min(1),
+  "price": zod.number().min(updateItemPriceBodyPriceMin).max(updateItemPriceBodyPriceMax),
+  "priceDate": zod.string().regex(updateItemPriceBodyPriceDateRegExp)
+})
+
+
+export const updateItemPriceResponseOnePriceMin = 0;
+export const updateItemPriceResponseOnePriceMax = 999999999999.99;
+
+export const updateItemPriceResponseOnePriceDateRegExp = new RegExp('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
+
+
+export const UpdateItemPriceResponse = zod.object({
+  "shopId": zod.number().min(1),
+  "price": zod.number().min(updateItemPriceResponseOnePriceMin).max(updateItemPriceResponseOnePriceMax),
+  "priceDate": zod.string().regex(updateItemPriceResponseOnePriceDateRegExp)
+}).and(zod.object({
+  "id": zod.number(),
+  "itemId": zod.number(),
+  "shopName": zod.string(),
+  "createdAt": zod.coerce.date()
+}))
+
+
+
+
+
+
+export const DeleteItemPriceParams = zod.object({
+  "id": zod.coerce.number().min(1),
+  "priceId": zod.coerce.number().min(1)
+})
+
+export const DeleteItemPriceResponse = zod.void()
+
+
 /**
  * @summary Download the current user's inventory or full account data
  */
@@ -38,6 +192,7 @@ export const previewDataImportResponseDataLocationsMax = 10000;
 
 export const previewDataImportResponseDataUnitsMax = 10000;
 
+
 export const previewDataImportResponseDataItemsItemOnePriceMin = 0;
 export const previewDataImportResponseDataItemsItemOnePriceMax = 999999999999.99;
 
@@ -46,11 +201,16 @@ export const previewDataImportResponseDataItemsMax = 10000;
 export const previewDataImportResponseDataShoppingListMax = 10000;
 
 
+export const previewDataImportResponseDataPricesItemOnePriceMin = 0;
+export const previewDataImportResponseDataPricesItemOnePriceMax = 999999999999.99;
+
+export const previewDataImportResponseDataPricesItemOnePriceDateRegExp = new RegExp('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
+
 
 export const PreviewDataImportResponse = zod.object({
   "data": zod.object({
   "format": zod.enum(['stockkeeper']),
-  "version": zod.literal(1),
+  "version": zod.union([zod.literal(1),zod.literal(2)]),
   "exportedAt": zod.string().optional(),
   "categories": zod.array(zod.object({
   "id": zod.number(),
@@ -74,6 +234,7 @@ export const PreviewDataImportResponse = zod.object({
   "symbol": zod.string()
 })).max(previewDataImportResponseDataUnitsMax),
   "items": zod.array(zod.object({
+  "copySourceId": zod.number().min(1).optional(),
   "name": zod.string(),
   "description": zod.string().nullish(),
   "quantity": zod.number(),
@@ -102,9 +263,24 @@ export const PreviewDataImportResponse = zod.object({
   "unit": zod.string().nullish(),
   "note": zod.string().nullish(),
   "createdAt": zod.string().optional()
-})).max(previewDataImportResponseDataShoppingListMax)
+})).max(previewDataImportResponseDataShoppingListMax),
+  "shops": zod.array(zod.object({
+  "id": zod.number(),
+  "name": zod.string()
+})).optional(),
+  "prices": zod.array(zod.object({
+  "shopId": zod.number().min(1),
+  "price": zod.number().min(previewDataImportResponseDataPricesItemOnePriceMin).max(previewDataImportResponseDataPricesItemOnePriceMax),
+  "priceDate": zod.string().regex(previewDataImportResponseDataPricesItemOnePriceDateRegExp)
+}).and(zod.object({
+  "id": zod.number(),
+  "itemId": zod.number(),
+  "createdAt": zod.string().optional()
+}))).optional()
 }),
   "counts": zod.object({
+  "shops": zod.number().optional(),
+  "prices": zod.number().optional(),
   "items": zod.number(),
   "categories": zod.number(),
   "locations": zod.number(),
@@ -124,6 +300,7 @@ export const importDataBodyDataLocationsMax = 10000;
 
 export const importDataBodyDataUnitsMax = 10000;
 
+
 export const importDataBodyDataItemsItemOnePriceMin = 0;
 export const importDataBodyDataItemsItemOnePriceMax = 999999999999.99;
 
@@ -132,11 +309,16 @@ export const importDataBodyDataItemsMax = 10000;
 export const importDataBodyDataShoppingListMax = 10000;
 
 
+export const importDataBodyDataPricesItemOnePriceMin = 0;
+export const importDataBodyDataPricesItemOnePriceMax = 999999999999.99;
+
+export const importDataBodyDataPricesItemOnePriceDateRegExp = new RegExp('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
+
 
 export const ImportDataBody = zod.object({
   "data": zod.object({
   "format": zod.enum(['stockkeeper']),
-  "version": zod.literal(1),
+  "version": zod.union([zod.literal(1),zod.literal(2)]),
   "exportedAt": zod.string().optional(),
   "categories": zod.array(zod.object({
   "id": zod.number(),
@@ -160,6 +342,7 @@ export const ImportDataBody = zod.object({
   "symbol": zod.string()
 })).max(importDataBodyDataUnitsMax),
   "items": zod.array(zod.object({
+  "copySourceId": zod.number().min(1).optional(),
   "name": zod.string(),
   "description": zod.string().nullish(),
   "quantity": zod.number(),
@@ -188,13 +371,28 @@ export const ImportDataBody = zod.object({
   "unit": zod.string().nullish(),
   "note": zod.string().nullish(),
   "createdAt": zod.string().optional()
-})).max(importDataBodyDataShoppingListMax)
+})).max(importDataBodyDataShoppingListMax),
+  "shops": zod.array(zod.object({
+  "id": zod.number(),
+  "name": zod.string()
+})).optional(),
+  "prices": zod.array(zod.object({
+  "shopId": zod.number().min(1),
+  "price": zod.number().min(importDataBodyDataPricesItemOnePriceMin).max(importDataBodyDataPricesItemOnePriceMax),
+  "priceDate": zod.string().regex(importDataBodyDataPricesItemOnePriceDateRegExp)
+}).and(zod.object({
+  "id": zod.number(),
+  "itemId": zod.number(),
+  "createdAt": zod.string().optional()
+}))).optional()
 }),
   "mode": zod.enum(['skip', 'add'])
 })
 
 export const ImportDataResponse = zod.object({
   "created": zod.object({
+  "shops": zod.number().optional(),
+  "prices": zod.number().optional(),
   "items": zod.number(),
   "categories": zod.number(),
   "locations": zod.number(),
@@ -455,12 +653,16 @@ export const ListItemsQueryParams = zod.object({
   "includeSubcategories": zod.coerce.boolean().optional()
 })
 
+export const listItemsResponsePriceDateRegExp = new RegExp('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
 export const listItemsResponsePriceMin = 0;
 export const listItemsResponsePriceMax = 999999999999.99;
 
 
 
 export const ListItemsResponseItem = zod.object({
+  "legacyPrice": zod.number().nullish(),
+  "priceShopName": zod.string().nullish(),
+  "priceDate": zod.string().regex(listItemsResponsePriceDateRegExp).nullish(),
   "id": zod.number(),
   "name": zod.string(),
   "description": zod.string().nullable(),
@@ -490,12 +692,14 @@ export const ListItemsResponse = zod.array(ListItemsResponseItem)
 /**
  * @summary Create a new item
  */
+
 export const createItemBodyPriceMin = 0;
 export const createItemBodyPriceMax = 999999999999.99;
 
 
 
 export const CreateItemBody = zod.object({
+  "copySourceId": zod.number().min(1).optional(),
   "name": zod.string(),
   "description": zod.string().nullish(),
   "quantity": zod.number(),
@@ -512,12 +716,16 @@ export const CreateItemBody = zod.object({
   "categoryId": zod.number().nullish()
 })
 
+export const createItemResponsePriceDateRegExp = new RegExp('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
 export const createItemResponsePriceMin = 0;
 export const createItemResponsePriceMax = 999999999999.99;
 
 
 
 export const CreateItemResponse = zod.object({
+  "legacyPrice": zod.number().nullish(),
+  "priceShopName": zod.string().nullish(),
+  "priceDate": zod.string().regex(createItemResponsePriceDateRegExp).nullish(),
   "id": zod.number(),
   "name": zod.string(),
   "description": zod.string().nullable(),
@@ -550,12 +758,16 @@ export const GetItemParams = zod.object({
   "id": zod.coerce.number()
 })
 
+export const getItemResponsePriceDateRegExp = new RegExp('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
 export const getItemResponsePriceMin = 0;
 export const getItemResponsePriceMax = 999999999999.99;
 
 
 
 export const GetItemResponse = zod.object({
+  "legacyPrice": zod.number().nullish(),
+  "priceShopName": zod.string().nullish(),
+  "priceDate": zod.string().regex(getItemResponsePriceDateRegExp).nullish(),
   "id": zod.number(),
   "name": zod.string(),
   "description": zod.string().nullable(),
@@ -610,12 +822,16 @@ export const UpdateItemBody = zod.object({
   "categoryId": zod.number().nullish()
 })
 
+export const updateItemResponsePriceDateRegExp = new RegExp('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
 export const updateItemResponsePriceMin = 0;
 export const updateItemResponsePriceMax = 999999999999.99;
 
 
 
 export const UpdateItemResponse = zod.object({
+  "legacyPrice": zod.number().nullish(),
+  "priceShopName": zod.string().nullish(),
+  "priceDate": zod.string().regex(updateItemResponsePriceDateRegExp).nullish(),
   "id": zod.number(),
   "name": zod.string(),
   "description": zod.string().nullable(),
@@ -670,12 +886,16 @@ export const GetRecentItemsQueryParams = zod.object({
   "limit": zod.coerce.number().optional()
 })
 
+export const getRecentItemsResponsePriceDateRegExp = new RegExp('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
 export const getRecentItemsResponsePriceMin = 0;
 export const getRecentItemsResponsePriceMax = 999999999999.99;
 
 
 
 export const GetRecentItemsResponseItem = zod.object({
+  "legacyPrice": zod.number().nullish(),
+  "priceShopName": zod.string().nullish(),
+  "priceDate": zod.string().regex(getRecentItemsResponsePriceDateRegExp).nullish(),
   "id": zod.number(),
   "name": zod.string(),
   "description": zod.string().nullable(),

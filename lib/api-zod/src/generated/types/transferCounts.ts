@@ -7,6 +7,8 @@
  */
 
 export interface TransferCounts {
+  shops?: number;
+  prices?: number;
   items: number;
   categories: number;
   locations: number;

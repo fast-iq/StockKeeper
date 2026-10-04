@@ -6,3 +6,6 @@ export * from "./items";
 export * from "./shopping-list";
 export * from "./password-reset-tokens";
 export * from "./session";
+export * from "./shops";
+export * from "./item-prices";
+export * from "./price-settings";

@@ -5,6 +5,61 @@
  * Inventory management API
  * OpenAPI spec version: 0.1.0
  */
+export interface ShopInput {
+  /**
+     * @minLength 1
+     * @maxLength 120
+     */
+  name: string;
+}
+
+export interface Shop {
+  id: number;
+  name: string;
+}
+
+export interface ItemPriceInput {
+  /** @minimum 1 */
+  shopId: number;
+  /**
+     * @minimum 0
+     * @maximum 999999999999.99
+     */
+  price: number;
+  /** @pattern ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ */
+  priceDate: string;
+}
+
+export type ItemPrice = ItemPriceInput & {
+  id: number;
+  itemId: number;
+  shopName: string;
+  createdAt: string;
+};
+
+export type PriceSettingsMode = typeof PriceSettingsMode[keyof typeof PriceSettingsMode];
+
+
+export const PriceSettingsMode = {
+  lowest: 'lowest',
+  latest: 'latest',
+} as const;
+
+export interface PriceSettings {
+  mode: PriceSettingsMode;
+}
+
+export interface TransferShop {
+  id: number;
+  name: string;
+}
+
+export type TransferPrice = ItemPriceInput & {
+  id: number;
+  itemId: number;
+  createdAt?: string;
+};
+
 export interface TransferFileInput {
   /** @maxLength 255 */
   fileName: string;
@@ -16,6 +71,8 @@ export interface TransferFileInput {
 }
 
 export interface TransferCounts {
+  shops?: number;
+  prices?: number;
   items: number;
   categories: number;
   locations: number;
@@ -54,6 +111,8 @@ export interface TransferUnit {
 }
 
 export interface CreateItemBody {
+  /** @minimum 1 */
+  copySourceId?: number;
   name: string;
   /** @nullable */
   description?: string | null;
@@ -118,6 +177,7 @@ export type TransferBundleVersion = typeof TransferBundleVersion[keyof typeof Tr
 
 export const TransferBundleVersion = {
   NUMBER_1: 1,
+  NUMBER_2: 2,
 } as const;
 
 export interface TransferBundle {
@@ -134,6 +194,8 @@ export interface TransferBundle {
   items: TransferItem[];
   /** @maxItems 10000 */
   shoppingList: TransferShoppingEntry[];
+  shops?: TransferShop[];
+  prices?: TransferPrice[];
 }
 
 export interface TransferPreview {
@@ -275,6 +337,15 @@ export interface UpdateCategoryBody {
 }
 
 export interface Item {
+  /** @nullable */
+  legacyPrice?: number | null;
+  /** @nullable */
+  priceShopName?: string | null;
+  /**
+     * @nullable
+     * @pattern ^[0-9]{4}-[0-9]{2}-[0-9]{2}$
+     */
+  priceDate?: string | null;
   id: number;
   name: string;
   /** @nullable */

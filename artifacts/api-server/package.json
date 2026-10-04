@@ -4,12 +4,15 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "test:prices": "node --experimental-strip-types --test tests/price-selection.test.mjs",
+    "test:migrations": "node --experimental-strip-types --test tests/migrations.test.mjs",
     "dev": "export NODE_ENV=development && pnpm run build && pnpm run start",
     "build": "node ./build.mjs",
     "start": "node --enable-source-maps ./dist/index.mjs",
     "test:session-cookie": "node --test tests/session-cookie.test.mjs",
     "test:google-auth": "node --experimental-strip-types --test tests/google-auth.test.mjs",
-    "test:data-transfer": "node --test tests/data-transfer.test.mjs",
+    "test:data-transfer": "node --test tests/data-transfer.test.mjs tests/transfer-test-safety.test.mjs",
+    "test:data-transfer:integration": "node tests/run-transfer-integration.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {

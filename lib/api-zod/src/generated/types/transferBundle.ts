@@ -10,6 +10,8 @@ import type { TransferBundleVersion } from './transferBundleVersion';
 import type { TransferCategory } from './transferCategory';
 import type { TransferItem } from './transferItem';
 import type { TransferLocation } from './transferLocation';
+import type { TransferPrice } from './transferPrice';
+import type { TransferShop } from './transferShop';
 import type { TransferShoppingEntry } from './transferShoppingEntry';
 import type { TransferUnit } from './transferUnit';
 
@@ -27,4 +29,6 @@ export interface TransferBundle {
   items: TransferItem[];
   /** @maxItems 10000 */
   shoppingList: TransferShoppingEntry[];
+  shops?: TransferShop[];
+  prices?: TransferPrice[];
 }

@@ -198,6 +198,52 @@ export async function readExcel(
       );
     const col = (...names: string[]) =>
       names.map((n) => columns.get(n)).find((n) => n != null);
+    const isShops = sheet.name === "Магазины" && col("магазин id") != null;
+    const isPrices = sheet.name === "Цены" && col("цена id") != null;
+    if (isShops || isPrices) {
+      for (let index = 2; index <= sheet.rowCount; index++) {
+        const row = sheet.getRow(index);
+        if (!row.hasValues) continue;
+        if (
+          !row.values ||
+          (Array.isArray(row.values) &&
+            row.values.every((v) => v == null || v === ""))
+        )
+          continue;
+        const get = (name: string) => {
+          const column = col(name);
+          return column ? text(row.getCell(column)) : "";
+        };
+        const calendar = (name: string, timestamp = false) => {
+          const column = col(name);
+          const value = column ? row.getCell(column).value : null;
+          return value instanceof Date
+            ? timestamp
+              ? value.toISOString()
+              : value.toISOString().slice(0, 10)
+            : get(name);
+        };
+        const id = (name: string) =>
+          number(get(name), `${sheet.name}!${index}`, true) ?? 0;
+        if (isShops)
+          (data.shops ??= []).push({
+            id: id("магазин id"),
+            name: get("магазин"),
+          });
+        else
+          (data.prices ??= []).push({
+            id: id("цена id"),
+            itemId: id("товар id"),
+            shopId: id("магазин id"),
+            price: number(get("цена"), `${sheet.name}!${index}`) ?? NaN,
+            priceDate: calendar("дата цены"),
+            ...(calendar("создано", true)
+              ? { createdAt: calendar("создано", true) }
+              : {}),
+          });
+      }
+      continue;
+    }
     const nameCol = col("наименование", "название", "name");
     if (!nameCol) {
       warnings.push(
@@ -345,7 +391,7 @@ export async function readExcel(
       }
     }
   }
-  if (!data.items.length && !data.shoppingList.length) {
+  if (!data.items.length && !data.shoppingList.length && !data.shops?.length) {
     throw new TransferError("В файле нет товаров или позиций списка покупок.");
   }
   warnings.push(
@@ -435,6 +481,28 @@ export async function writeExcel(data: TransferBundle): Promise<Buffer> {
       i.checked ? "да" : "нет",
       i.itemId ?? null,
     ]);
+  const shops = workbook.addWorksheet("Магазины");
+  shops.addRow(["Магазин ID", "Магазин"]);
+  for (const s of data.shops ?? []) shops.addRow([s.id, s.name]);
+  const prices = workbook.addWorksheet("Цены");
+  prices.addRow([
+    "Цена ID",
+    "Товар ID",
+    "Магазин ID",
+    "Цена",
+    "Дата цены",
+    "Создано",
+  ]);
+  for (const p of data.prices ?? [])
+    prices.addRow([
+      p.id,
+      p.itemId,
+      p.shopId,
+      p.price,
+      p.priceDate,
+      p.createdAt ?? "",
+    ]);
+  prices.getColumn(4).numFmt = "0.00";
   for (const s of workbook.worksheets) {
     s.getRow(1).font = { bold: true };
     s.views = [{ state: "frozen", ySplit: 1 }];

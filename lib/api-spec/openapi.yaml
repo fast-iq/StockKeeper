@@ -21,6 +21,116 @@ tags:
   - name: shopping-list
     description: Shopping list operations
 paths:
+  /price-settings:
+    get:
+      operationId: getPriceSettings
+      tags: [items]
+      responses:
+        "200":
+          description: Price display preference
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PriceSettings" }
+    patch:
+      operationId: updatePriceSettings
+      tags: [items]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PriceSettings" }
+      responses:
+        "200":
+          description: Saved preference
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PriceSettings" }
+  /shops:
+    get:
+      operationId: listShops
+      tags: [items]
+      responses:
+        "200":
+          description: Account shops
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Shop" }
+    post:
+      operationId: createShop
+      tags: [items]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ShopInput" }
+      responses:
+        "201":
+          description: Created or reused shop
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Shop" }
+  /items/{id}/prices:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: integer, minimum: 1 }
+    get:
+      operationId: listItemPrices
+      tags: [items]
+      responses:
+        "200":
+          description: Price history
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/ItemPrice" }
+    post:
+      operationId: createItemPrice
+      tags: [items]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ItemPriceInput" }
+      responses:
+        "201":
+          description: Price created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ItemPrice" }
+  /items/{id}/prices/{priceId}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: integer, minimum: 1 }
+      - name: priceId
+        in: path
+        required: true
+        schema: { type: integer, minimum: 1 }
+    patch:
+      operationId: updateItemPrice
+      tags: [items]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ItemPriceInput" }
+      responses:
+        "200":
+          description: Price updated
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ItemPrice" }
+    delete:
+      operationId: deleteItemPrice
+      tags: [items]
+      responses:
+        "204": { description: Price deleted }
   /data/export:
     get:
       operationId: exportData
@@ -698,6 +808,54 @@ paths:
 
 components:
   schemas:
+    ShopInput:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 120 }
+    Shop:
+      type: object
+      required: [id, name]
+      properties:
+        id: { type: integer }
+        name: { type: string }
+    ItemPriceInput:
+      type: object
+      required: [shopId, price, priceDate]
+      properties:
+        shopId: { type: integer, minimum: 1 }
+        price: { type: number, minimum: 0, maximum: 999999999999.99 }
+        priceDate: { type: string, pattern: "^[0-9]{4}-[0-9]{2}-[0-9]{2}$" }
+    ItemPrice:
+      allOf:
+        - { $ref: "#/components/schemas/ItemPriceInput" }
+        - type: object
+          required: [id, itemId, shopName, createdAt]
+          properties:
+            id: { type: integer }
+            itemId: { type: integer }
+            shopName: { type: string }
+            createdAt: { type: string, format: date-time }
+    PriceSettings:
+      type: object
+      required: [mode]
+      properties:
+        mode: { type: string, enum: [lowest, latest] }
+    TransferShop:
+      type: object
+      required: [id, name]
+      properties:
+        id: { type: integer }
+        name: { type: string }
+    TransferPrice:
+      allOf:
+        - { $ref: "#/components/schemas/ItemPriceInput" }
+        - type: object
+          required: [id, itemId]
+          properties:
+            id: { type: integer }
+            itemId: { type: integer }
+            createdAt: { type: string }
     TransferFileInput:
       type: object
       required: [fileName, content]
@@ -713,6 +871,8 @@ components:
       type: object
       required: [items, categories, locations, units, shoppingList]
       properties:
+        shops: { type: integer }
+        prices: { type: integer }
         items:
           type: integer
         categories:
@@ -807,7 +967,7 @@ components:
           enum: [stockkeeper]
         version:
           type: integer
-          enum: [1]
+          enum: [1, 2]
         exportedAt:
           type: string
         categories:
@@ -835,6 +995,12 @@ components:
           maxItems: 10000
           items:
             $ref: "#/components/schemas/TransferShoppingEntry"
+        shops:
+          type: array
+          items: { $ref: "#/components/schemas/TransferShop" }
+        prices:
+          type: array
+          items: { $ref: "#/components/schemas/TransferPrice" }
     TransferPreview:
       type: object
       required: [data, counts, warnings]
@@ -1072,6 +1238,10 @@ components:
     Item:
       type: object
       properties:
+        legacyPrice: { type: ["number", "null"] }
+        priceShopName: { type: ["string", "null"] }
+        priceDate:
+          { type: ["string", "null"], pattern: "^[0-9]{4}-[0-9]{2}-[0-9]{2}$" }
         id:
           type: integer
         name:
@@ -1138,6 +1308,7 @@ components:
     CreateItemBody:
       type: object
       properties:
+        copySourceId: { type: integer, minimum: 1 }
         name:
           type: string
         description:

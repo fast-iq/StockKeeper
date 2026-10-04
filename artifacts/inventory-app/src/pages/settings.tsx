@@ -1,9 +1,15 @@
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { AppLayout } from "@/components/layout/AppLayout";
+import { PriceDisplaySettings } from "@/components/PriceDisplaySettings";
 import { DataExchange } from "@/components/DataExchange";
-import { useGetMe } from "@workspace/api-client-react";
+import { getGetMeQueryKey, useGetMe } from "@workspace/api-client-react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
-import { setLanguage } from "@/i18n";
+import {
+  getLanguagePreference,
+  setLanguage,
+  type LanguagePreference,
+} from "@/i18n";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -16,44 +22,144 @@ import {
   Loader2,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { format } from "date-fns";
 import { ru as ruLocale, enUS } from "date-fns/locale";
 import i18n from "@/i18n";
 import { useChangePassword } from "@workspace/api-client-react";
 
+// Keep the deadline active through body consumption, not just response headers.
+const LANGUAGE_REQUEST_TIMEOUT_MS = 10_000;
+
+async function withLanguageRequestTimeout<T>(
+  request: (signal: AbortSignal) => Promise<T>,
+): Promise<T> {
+  const controller = new AbortController();
+  const timeout = window.setTimeout(
+    () => controller.abort(),
+    LANGUAGE_REQUEST_TIMEOUT_MS,
+  );
+  try {
+    return await request(controller.signal);
+  } finally {
+    window.clearTimeout(timeout);
+  }
+}
+
 export default function SettingsPage() {
   const { t } = useTranslation();
   const { toast } = useToast();
   const { data: user } = useGetMe();
-
-  const currentLang = (i18n.language?.startsWith("ru") ? "ru" : "en") as
-    | "en"
-    | "ru";
-  const [selectedLang, setSelectedLang] = useState<"en" | "ru">(currentLang);
+  const queryClient = useQueryClient();
+  const [selectedLang, setSelectedLang] = useState<LanguagePreference>(
+    getLanguagePreference,
+  );
+  const [savingLanguage, setSavingLanguage] = useState(false);
+  const [languageUnverified, setLanguageUnverified] = useState(false);
+  useEffect(() => {
+    const lang = user?.language;
+    if (lang === "en" || lang === "ru" || lang === "auto") {
+      setSelectedLang(lang);
+    }
+  }, [user?.language]);
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const changePasswordMutation = useChangePassword();
 
-  const handleSave = async () => {
-    setLanguage(selectedLang);
-
-    try {
-      await fetch("/api/auth/me", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+  const verifyLanguage = async () => {
+    const profile = await withLanguageRequestTimeout(async (signal) => {
+      const response = await fetch("/api/auth/me", {
         credentials: "include",
-        body: JSON.stringify({ language: selectedLang }),
+        cache: "no-store",
+        signal,
+      });
+      if (!response.ok) throw new Error("Language verification failed");
+      return response.json();
+    });
+    const language = profile.language;
+    if (
+      profile.id !== user?.id ||
+      (language !== "en" && language !== "ru" && language !== "auto")
+    ) {
+      throw new Error("Invalid language verification response");
+    }
+    queryClient.setQueryData(getGetMeQueryKey(), profile);
+    setLanguage(language);
+    setLanguageUnverified(false);
+    return language as LanguagePreference;
+  };
+
+  const showUnverified = () => {
+    setLanguageUnverified(true);
+    toast({
+      title: t("settings.languageUnverified"),
+      variant: "destructive",
+    });
+  };
+
+  const handleVerifyLanguage = async () => {
+    setSavingLanguage(true);
+    try {
+      setSelectedLang(await verifyLanguage());
+      toast({ title: t("settings.languageVerified") });
+    } catch {
+      showUnverified();
+    } finally {
+      setSavingLanguage(false);
+    }
+  };
+
+  const handleSave = async () => {
+    setSavingLanguage(true);
+    let rejected = false;
+    try {
+      const updatedUser = await withLanguageRequestTimeout(async (signal) => {
+        const response = await fetch("/api/auth/me", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({ language: selectedLang }),
+          signal,
+        });
+        if (!response.ok) {
+          rejected = true;
+          throw new Error("Language preference was not saved");
+        }
+        return response.json();
+      });
+      queryClient.setQueryData(getGetMeQueryKey(), updatedUser);
+      setLanguage(selectedLang);
+      setLanguageUnverified(false);
+      toast({
+        title: t("settings.saved"),
+        description: t("settings.savedDescription"),
       });
     } catch {
-      // silently ignore server error — local change already applied
+      if (rejected) {
+        toast({ title: t("settings.saveFailed"), variant: "destructive" });
+      } else {
+        // A lost/timed-out response does not prove the write failed. Never repeat PATCH
+        // automatically: read the authoritative profile before changing local UI.
+        try {
+          const persisted = await verifyLanguage();
+          toast({
+            title: t(
+              persisted === selectedLang
+                ? "settings.languageVerified"
+                : "settings.saveFailed",
+            ),
+            ...(persisted === selectedLang
+              ? {}
+              : { variant: "destructive" as const }),
+          });
+        } catch {
+          showUnverified();
+        }
+      }
+    } finally {
+      setSavingLanguage(false);
     }
-
-    toast({
-      title: t("settings.saved"),
-      description: t("settings.savedDescription"),
-    });
   };
 
   const handlePasswordChange = (event: React.FormEvent<HTMLFormElement>) => {
@@ -90,7 +196,7 @@ export default function SettingsPage() {
     );
   };
 
-  const dateLocale = selectedLang === "ru" ? ruLocale : enUS;
+  const dateLocale = i18n.language?.startsWith("ru") ? ruLocale : enUS;
 
   return (
     <ProtectedRoute>
@@ -121,17 +227,22 @@ export default function SettingsPage() {
                 <p className="text-sm text-muted-foreground mb-4">
                   {t("settings.languageDescription")}
                 </p>
-                <div className="grid grid-cols-2 gap-3">
-                  {(["ru", "en"] as const).map((lang) => {
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  {(["ru", "en", "auto"] as const).map((lang) => {
                     const label =
                       lang === "ru"
                         ? t("settings.languageRu")
-                        : t("settings.languageEn");
+                        : lang === "en"
+                          ? t("settings.languageEn")
+                          : t("settings.languageAuto");
                     const isSelected = selectedLang === lang;
                     return (
                       <button
                         key={lang}
                         type="button"
+                        data-testid={`button-language-${lang}`}
+                        aria-pressed={isSelected}
+                        disabled={savingLanguage}
                         onClick={() => setSelectedLang(lang)}
                         className={`relative flex items-center gap-3 p-4 rounded-lg border-2 transition-all text-left ${
                           isSelected
@@ -140,7 +251,7 @@ export default function SettingsPage() {
                         }`}
                       >
                         <span className="text-2xl">
-                          {lang === "ru" ? "🇷🇺" : "🇬🇧"}
+                          {lang === "ru" ? "🇷🇺" : lang === "en" ? "🇬🇧" : "🌐"}
                         </span>
                         <div>
                           <div
@@ -149,7 +260,11 @@ export default function SettingsPage() {
                             {label}
                           </div>
                           <div className="text-xs text-muted-foreground">
-                            {lang === "ru" ? "Русский" : "English"}
+                            {lang === "ru"
+                              ? "Русский"
+                              : lang === "en"
+                                ? "English"
+                                : t("settings.languageAutoHint")}
                           </div>
                         </div>
                         {isSelected && (
@@ -159,6 +274,22 @@ export default function SettingsPage() {
                     );
                   })}
                 </div>
+                {languageUnverified && (
+                  <div role="alert" className="space-y-3">
+                    <p className="text-sm text-destructive">
+                      {t("settings.languageUnverified")}
+                    </p>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      disabled={savingLanguage}
+                      onClick={handleVerifyLanguage}
+                      data-testid="button-verify-language"
+                    >
+                      {t("settings.verifyLanguage")}
+                    </Button>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -282,10 +413,17 @@ export default function SettingsPage() {
               </form>
             </div>
 
+            <PriceDisplaySettings />
+
             <DataExchange />
 
             <div className="flex justify-end">
-              <Button onClick={handleSave} className="w-full md:w-auto px-8">
+              <Button
+                onClick={handleSave}
+                disabled={savingLanguage}
+                data-testid="button-save-language"
+                className="w-full md:w-auto px-8"
+              >
                 {t("settings.save")}
               </Button>
             </div>

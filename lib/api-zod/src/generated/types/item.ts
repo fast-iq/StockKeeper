@@ -7,6 +7,15 @@
  */
 
 export interface Item {
+  /** @nullable */
+  legacyPrice?: number | null;
+  /** @nullable */
+  priceShopName?: string | null;
+  /**
+     * @nullable
+     * @pattern ^[0-9]{4}-[0-9]{2}-[0-9]{2}$
+     */
+  priceDate?: string | null;
   id: number;
   name: string;
   /** @nullable */

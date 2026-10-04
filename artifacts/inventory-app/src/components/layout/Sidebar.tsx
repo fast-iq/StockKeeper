@@ -18,7 +18,6 @@ import { Button } from "@/components/ui/button";
 import { useTranslation } from "react-i18next";
 import { useEffect } from "react";
 import { setLanguage } from "@/i18n";
-import i18n from "@/i18n";
 import {
   Sheet,
   SheetClose,
@@ -37,16 +36,11 @@ export function Sidebar() {
 
   // Sync language from user preferences once available
   useEffect(() => {
-    if (user) {
-      const userLang = user.language;
-      if (userLang === "ru" || userLang === "en") {
-        const current = i18n.language?.startsWith("ru") ? "ru" : "en";
-        if (current !== userLang) {
-          setLanguage(userLang);
-        }
-      }
+    const userLang = user?.language;
+    if (userLang === "ru" || userLang === "en" || userLang === "auto") {
+      setLanguage(userLang);
     }
-  }, [user]);
+  }, [user?.language]);
 
   const navItems = [
     { href: "/dashboard", label: t("nav.overview"), icon: LayoutDashboard },

@@ -5,12 +5,16 @@ import {
   locationsTable,
   unitsTable,
   shoppingListTable,
+  shopsTable,
+  itemPricesTable,
 } from "@workspace/db";
-import { eq, or, isNull, sql } from "drizzle-orm";
+import { eq, or, isNull, sql, and } from "drizzle-orm";
+import { shopKey, shopName } from "./price-selection";
 import {
   counts,
   itemIdentity,
   validateBundle,
+  availableMatches,
   type TransferBundle,
   type TransferCounts,
 } from "./transfer-validation";
@@ -33,16 +37,31 @@ export async function exportAccount(userId: number): Promise<TransferBundle> {
       const items = await tx
         .select()
         .from(itemsTable)
-        .where(eq(itemsTable.userId, userId));
+        .where(eq(itemsTable.userId, userId))
+        .orderBy(itemsTable.id);
       const shoppingList = await tx
         .select()
         .from(shoppingListTable)
         .where(eq(shoppingListTable.userId, userId));
+      const shops = await tx
+        .select({ id: shopsTable.id, name: shopsTable.name })
+        .from(shopsTable)
+        .where(eq(shopsTable.userId, userId));
+      const prices = await tx
+        .select()
+        .from(itemPricesTable)
+        .where(eq(itemPricesTable.userId, userId))
+        .orderBy(itemPricesTable.id);
       // Export only the portable fields, never account IDs, password hashes or sessions.
       const data: TransferBundle = {
         format: "stockkeeper",
-        version: 1,
+        version: 2,
         exportedAt: new Date().toISOString(),
+        shops,
+        prices: prices.map(({ userId: _owner, createdAt, ...row }) => ({
+          ...row,
+          createdAt: createdAt.toISOString(),
+        })),
         categories: categories.map(({ userId: _owner, createdAt, ...row }) => ({
           ...row,
           createdAt: createdAt.toISOString(),
@@ -93,6 +112,8 @@ export async function importAccount(
       locations: [],
       units: [],
       shoppingList: [],
+      shops: [],
+      prices: [],
     });
     let skipped = 0;
     const existingCats = await tx
@@ -189,8 +210,11 @@ export async function importAccount(
     const existingItems = await tx
       .select()
       .from(itemsTable)
-      .where(eq(itemsTable.userId, userId));
-    const itemKeys = new Map(existingItems.map((i) => [itemIdentity(i), i.id]));
+      .where(eq(itemsTable.userId, userId))
+      .orderBy(itemsTable.id);
+    const matchItem = availableMatches(existingItems, (row) =>
+      itemIdentity(row),
+    );
     const itemMap = new Map<number, number>();
     for (const i of data.items) {
       const record = {
@@ -213,17 +237,70 @@ export async function importAccount(
         updatedAt: date(i.updatedAt),
       };
       const key = itemIdentity(record);
-      let id = mode === "skip" ? itemKeys.get(key) : undefined;
+      let id = mode === "skip" ? matchItem(key)?.id : undefined;
       if (id == null) {
         const [row] = await tx
           .insert(itemsTable)
           .values(record)
           .returning({ id: itemsTable.id });
         id = row!.id;
-        itemKeys.set(key, id);
         created.items++;
       } else skipped++;
       itemMap.set(i.id, id);
+    }
+
+    const shopMap = new Map<number, number>();
+    for (const shop of data.shops ?? []) {
+      const nameKey = shopKey(shop.name);
+      const added = await tx
+        .insert(shopsTable)
+        .values({ userId, name: shopName(shop.name), nameKey })
+        .onConflictDoNothing({
+          target: [shopsTable.userId, shopsTable.nameKey],
+        })
+        .returning({ id: shopsTable.id });
+      const [saved] = added.length
+        ? added
+        : await tx
+            .select({ id: shopsTable.id })
+            .from(shopsTable)
+            .where(
+              and(
+                eq(shopsTable.userId, userId),
+                eq(shopsTable.nameKey, nameKey),
+              ),
+            );
+      shopMap.set(shop.id, saved!.id);
+      if (added.length) created.shops = (created.shops ?? 0) + 1;
+    }
+    const existingPrices = await tx
+      .select()
+      .from(itemPricesTable)
+      .where(eq(itemPricesTable.userId, userId))
+      .orderBy(itemPricesTable.id);
+    const priceKey = (p: {
+      itemId: number;
+      shopId: number;
+      price: number;
+      priceDate: string;
+    }) => JSON.stringify([p.itemId, p.shopId, p.price, p.priceDate]);
+    const matchPrice = availableMatches(existingPrices, priceKey);
+    for (const p of data.prices ?? []) {
+      const record = {
+        userId,
+        itemId: itemMap.get(p.itemId)!,
+        shopId: shopMap.get(p.shopId)!,
+        price: p.price,
+        priceDate: p.priceDate,
+        createdAt: date(p.createdAt),
+      };
+      const key = priceKey(record);
+      if (mode === "skip" && matchPrice(key)) {
+        skipped++;
+        continue;
+      }
+      await tx.insert(itemPricesTable).values(record);
+      created.prices = (created.prices ?? 0) + 1;
     }
 
     const existingShopping = await tx

@@ -4,3 +4,15 @@
 - [Google OAuth preview origin](google-oauth-preview-origin.md) — appPreview runs on localhost and can trigger a false origin-not-allowed error for Google.
 - [GitHub и AGENTS.md](github-source-of-truth.md) — перед каждой задачей проверять актуальную версию GitHub и AGENTS.md; при изменениях проекта обновлять AGENTS.md.
 - [Replit pnpm launcher](replit-pnpm-launcher.md) — use Corepack for pinned pnpm; the system launcher's automatic version manager can recurse before app startup.
+- [Секреты публикации](publishing-secret-visibility.md) — EXTERNAL_DB_URL задаётся в Publishing; отсутствие в просмотре секретов проекта не доказывает отсутствие в deployment.
+- [Разрешение на Production DB и секреты](production-db-authorization.md) — не менять Production-подключение, Publishing settings или секреты без явного разрешения пользователя.
+- [Asset filenames](asset-filenames.md) — use ASCII output basenames if asset registration rejects Cyrillic with a ByteString error; Russian display titles work.
+- [Session timing in API tests](integration-session-timing.md) — дочитывать ответ входа до запросов с cookie: заголовки могут прийти раньше сохранения сессии.
+- [Временные тестовые серверы](temporary-test-server-lifetime.md) — запускать управляемо в фоне; сокет временного PostgreSQL направлять внутрь его каталога.
+- [Пути Drizzle migrations](drizzle-migration-output.md) — задавать `out` относительным путём; абсолютный путь ломает повторное чтение snapshot.
+- [Browser toast assertions](browser-toast-assertions.md) — Radix status is a hidden announcement, not the visible toast; verify notification visibility separately.
+- [Браузер для тестов](browser-runtime.md) — защищённый runner и CLI могут искать Playwright cache в разных местах; предпочитать доступный системный Chromium.
+- [Browser network lifecycle](browser-network-lifecycle.md) — settle held routes before document navigation; old browser response bodies may disappear after logout.
+- [Цены по магазинам](shop-price-requirements.md) — магазин, цена и дата для одной позиции; в списке одна цена, минимум или последняя по настройке.
+- [Количество записей в копии](backup-record-multiplicity.md) — skip сопоставляет товары и цены один к одному; одинаковые реквизиты не повод смешивать самостоятельные истории.
+- [Прерывание браузерных тестов](browser-test-interruption.md) — внешний таймаут может оставить временные бандлы, вызывающие ложные ошибки lint.

@@ -11,6 +11,7 @@ import {
   useDeleteItem,
 } from "@workspace/api-client-react";
 import { Input } from "@/components/ui/input";
+import { BarcodeScanButton } from "@/components/BarcodeScanButton";
 import { Button } from "@/components/ui/button";
 import {
   Search,
@@ -100,6 +101,17 @@ export default function InventoryPage() {
     setSearch(value);
     clearTimeout(searchTimerRef.current);
     searchTimerRef.current = setTimeout(() => setDebouncedSearch(value), 300);
+  };
+
+  useEffect(() => () => clearTimeout(searchTimerRef.current), []);
+
+  const handleBarcodeScan = (value: string) => {
+    clearTimeout(searchTimerRef.current);
+    setSearch(value);
+    setDebouncedSearch(value);
+    // A scanned item must not be hidden by a previously selected shelf/category.
+    setSelectedCategoryId(undefined);
+    setSelectedLocationId(undefined);
   };
 
   return (
@@ -224,14 +236,16 @@ export default function InventoryPage() {
               </div>
               <div className="flex items-center gap-2">
                 <div className="relative flex-1 max-w-md">
-                  <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
                     placeholder={t("inventory.searchPlaceholder")}
-                    className="pl-9 bg-card"
+                    className="h-11 pl-9 bg-card"
+                    aria-label={t("inventory.searchPlaceholder")}
                     value={search}
                     onChange={(e) => handleSearchChange(e.target.value)}
                   />
                 </div>
+                <BarcodeScanButton onScan={handleBarcodeScan} />
                 <Button
                   variant="outline"
                   className="md:hidden"
@@ -465,6 +479,22 @@ function CategoryTreeNode({
   );
 }
 
+function priceMeta(item: Item): string | undefined {
+  if (!item.priceShopName && !item.priceDate) return undefined;
+  return [item.priceShopName, item.priceDate?.slice(0, 10)]
+    .filter(Boolean)
+    .join(", ");
+}
+
+function PriceMeta({ item }: { item: Item }) {
+  const m = priceMeta(item);
+  return m ? (
+    <span className="block text-[10px] leading-3 text-muted-foreground/80 font-sans">
+      {m}
+    </span>
+  ) : null;
+}
+
 function ItemRow({ item }: { item: Item }) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
@@ -566,10 +596,12 @@ function ItemRow({ item }: { item: Item }) {
           </span>
           {item.price != null && (
             <span
-              className="ml-2 text-xs font-mono text-muted-foreground"
+              className="ml-2 text-xs font-mono text-muted-foreground text-left"
               data-testid={`text-price-${item.id}`}
+              title={priceMeta(item)}
             >
               {formatPrice(item.price)}
+              <PriceMeta item={item} />
             </span>
           )}
           <button
@@ -747,10 +779,12 @@ function MobileItemCard({ item }: { item: Item }) {
           </span>
           {item.price != null && (
             <span
-              className="ml-2 text-xs font-mono text-muted-foreground"
+              className="ml-2 text-xs font-mono text-muted-foreground text-left"
               data-testid={`text-price-${item.id}`}
+              title={priceMeta(item)}
             >
               {formatPrice(item.price)}
+              <PriceMeta item={item} />
             </span>
           )}
           <button

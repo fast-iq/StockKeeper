@@ -14,6 +14,7 @@ import {
 } from "@workspace/api-client-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { BarcodeInput } from "@/components/BarcodeInput";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -23,6 +24,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { ItemPrices } from "@/components/ItemPrices";
 import { TagInput } from "@/components/ui/tag-input";
 import {
   Package,
@@ -433,13 +435,13 @@ export default function ItemDetailPage() {
                     </h2>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                       <div className="space-y-2">
-                        <Label htmlFor="price">{t("price.label")}</Label>
+                        <Label htmlFor="price">{t("price.legacyLabel")}</Label>
                         <Input
                           id="price"
                           name="price"
                           type="text"
                           inputMode="decimal"
-                          defaultValue={item.price?.toString() ?? ""}
+                          defaultValue={item.legacyPrice?.toString() ?? ""}
                           placeholder={t("price.placeholder")}
                           className="font-mono bg-background"
                           data-testid="input-price"
@@ -509,12 +511,7 @@ export default function ItemDetailPage() {
                         <Label htmlFor="barcode">
                           {t("itemDetail.barcode")}
                         </Label>
-                        <Input
-                          id="barcode"
-                          name="barcode"
-                          defaultValue={item.barcode || ""}
-                          className="font-mono bg-background"
-                        />
+                        <BarcodeInput defaultValue={item.barcode || ""} />
                       </div>
                       <div className="space-y-2 md:col-span-2">
                         <Label>{t("itemDetail.tags")}</Label>
@@ -596,6 +593,7 @@ export default function ItemDetailPage() {
               </div>
 
               <div className="space-y-6">
+                <ItemPrices itemId={id} legacyPrice={item.legacyPrice} />
                 <div className="bg-card rounded-xl border border-border overflow-hidden">
                   <div className="bg-muted/50 p-4 border-b border-border flex items-center justify-between">
                     <h3 className="font-semibold text-sm uppercase tracking-wider">
@@ -633,6 +631,15 @@ export default function ItemDetailPage() {
                         {formatPrice(item.price) ?? "—"}
                       </span>
                     </div>
+                    {item.priceShopName && (
+                      <div className="-mt-2 pb-4 border-b border-border border-dashed text-right text-xs text-muted-foreground">
+                        {item.priceShopName}
+                        {item.priceDate
+                          ? ` · ${item.priceDate.slice(0, 10)}`
+                          : ""}
+                      </div>
+                    )}
+                    <div className="hidden"></div>
                     <div className="flex justify-between items-center pb-4 border-b border-border border-dashed">
                       <span className="text-muted-foreground flex items-center gap-2 text-sm">
                         <MapPin className="w-4 h-4" />{" "}
