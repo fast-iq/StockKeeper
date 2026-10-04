@@ -1,0 +1,53 @@
+name: stockkeeper
+
+services:
+  api:
+    build:
+      context: ../..
+      dockerfile: deploy/docker/Dockerfile.api
+    restart: unless-stopped
+    init: true
+    environment:
+      NODE_ENV: production
+      PORT: "8080"
+      SESSION_SECRET: "${SESSION_SECRET:?Set SESSION_SECRET in the host env file}"
+      EXTERNAL_DB_URL: "${EXTERNAL_DB_URL:?Set EXTERNAL_DB_URL in the host env file}"
+      GOOGLE_CLIENT_ID: "${GOOGLE_CLIENT_ID:?Set GOOGLE_CLIENT_ID in the host env file}"
+      CORS_ORIGINS: "https://${APP_DOMAIN:?Set APP_DOMAIN in the host env file}"
+      RESEND_FROM_EMAIL: "${RESEND_FROM_EMAIL:-}"
+      SMTP_HOST: "${SMTP_HOST:-}"
+      SMTP_PORT: "${SMTP_PORT:-587}"
+      SMTP_USER: "${SMTP_USER:-}"
+      SMTP_PASS: "${SMTP_PASS:-}"
+      SMTP_FROM: "${SMTP_FROM:-}"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    expose:
+      - "8080"
+    security_opt:
+      - no-new-privileges:true
+
+  web:
+    build:
+      context: ../..
+      dockerfile: deploy/docker/Dockerfile.web
+      args:
+        BASE_PATH: /
+        VITE_GOOGLE_CLIENT_ID: "${GOOGLE_CLIENT_ID:?Set GOOGLE_CLIENT_ID in the host env file}"
+    restart: unless-stopped
+    environment:
+      APP_DOMAIN: "${APP_DOMAIN:?Set APP_DOMAIN in the host env file}"
+    depends_on:
+      api:
+        condition: service_healthy
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - caddy_data:/data
+      - caddy_config:/config
+
+volumes:
+  caddy_data:
+  caddy_config:

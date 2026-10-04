@@ -1,0 +1,19 @@
+FROM node:24-bookworm-slim AS build
+
+WORKDIR /workspace
+RUN corepack enable
+
+COPY . .
+RUN corepack pnpm install --frozen-lockfile
+
+ARG BASE_PATH=/
+ARG VITE_GOOGLE_CLIENT_ID
+ENV BASE_PATH=${BASE_PATH}
+ENV VITE_GOOGLE_CLIENT_ID=${VITE_GOOGLE_CLIENT_ID}
+
+RUN corepack pnpm --filter @workspace/inventory-app run build
+
+FROM caddy:2-alpine AS runtime
+
+COPY deploy/docker/Caddyfile /etc/caddy/Caddyfile
+COPY --from=build /workspace/artifacts/inventory-app/dist/public /srv
