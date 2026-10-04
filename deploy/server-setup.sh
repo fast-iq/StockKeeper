@@ -105,8 +105,24 @@ info "     → APIs & Services → Credentials → OAuth Client → Authorized J
 # ---------------------------------------------------------------- 1. packages
 log "Шаг 1. Пакеты (apt)"
 export DEBIAN_FRONTEND=noninteractive
-apt-get update -qq
-apt-get install -y -qq postgresql ufw git curl openssl ca-certificates
+UPDATE_OK=0
+for _i in 1 2 3; do
+  if apt-get update -qq; then
+    UPDATE_OK=1
+    break
+  fi
+  sleep 5
+done
+if [ "$UPDATE_OK" -ne 1 ]; then
+  warn "apt-get update не прошёл (3 попытки) — продолжаем по кэшированным спискам пакетов."
+fi
+if ! apt-get install -y -qq -o DPkg::Lock::Timeout=120 \
+  postgresql ufw git curl openssl ca-certificates; then
+  sleep 3
+  apt-get install -y -qq -o DPkg::Lock::Timeout=120 \
+    postgresql ufw git curl openssl ca-certificates ||
+    die "Не удалось установить пакеты — проверьте сеть и /var/lib/dpkg/lock-frontend, затем повторите запуск."
+fi
 
 if ! command -v docker >/dev/null 2>&1 || ! docker compose version >/dev/null 2>&1; then
   if [ "$HAS_SYSTEMD" -eq 1 ]; then
@@ -116,7 +132,10 @@ if ! command -v docker >/dev/null 2>&1 || ! docker compose version >/dev/null 2>
         curl -fsSL https://get.docker.com | sh
         docker compose version >/dev/null 2>&1 || die "Docker Compose не заработал после установки."
         ;;
-      *) die "Без Docker запуск контейнеров невозможен." ;;
+      *)
+        warn "Установка Docker пропущена — шаги 5-7 будут пропущены, остальное (PostgreSQL, env-файл) настроится."
+        warn "Повторите запуск скрипта после установки Docker."
+        ;;
     esac
   else
     warn "Docker отсутствует — секция контейнеров будет пропущена."
@@ -147,17 +166,18 @@ else
 fi
 [[ "$DB_PASSWORD" =~ [@:/\?#] ]] && die "Пароль содержит символы '@ : / ? #' — они ломают URL подключения. Укажите другой."
 
-if as_postgres psql -tAc "SELECT 1 FROM pg_roles WHERE rolname = '$DB_USER'" | grep -q 1; then
-  SQL_PW="${DB_PASSWORD//\'/\'\'}"
+ROLE_EXISTS="$(as_postgres psql -tAc "SELECT 1 FROM pg_roles WHERE rolname = '$DB_USER'" || true)"
+SQL_PW="${DB_PASSWORD//\'/\'\'}"
+if [ "$ROLE_EXISTS" = "1" ]; then
   as_postgres psql -qc "ALTER ROLE $DB_USER WITH LOGIN PASSWORD '$SQL_PW'"
   info "Роль $DB_USER уже существует — пароль синхронизирован с env-файлом."
 else
-  SQL_PW="${DB_PASSWORD//\'/\'\'}"
   as_postgres psql -qc "CREATE ROLE $DB_USER WITH LOGIN PASSWORD '$SQL_PW'"
   info "Создана роль $DB_USER."
 fi
 
-if as_postgres psql -tAc "SELECT 1 FROM pg_database WHERE datname = '$DB_NAME'" | grep -q 1; then
+DB_EXISTS="$(as_postgres psql -tAc "SELECT 1 FROM pg_database WHERE datname = '$DB_NAME'" || true)"
+if [ "$DB_EXISTS" = "1" ]; then
   info "База $DB_NAME уже существует."
 else
   as_postgres createdb -O "$DB_USER" "$DB_NAME"
@@ -186,7 +206,8 @@ LISTEN="$(as_postgres psql -tAc 'SHOW listen_addresses')"
 
 TCP_OK=0
 for _ in 1 2 3 4 5; do
-  if PGPASSWORD="$DB_PASSWORD" psql -h 127.0.0.1 -U "$DB_USER" -d "$DB_NAME" -tAc "SELECT current_user" 2>/dev/null | grep -q "^$DB_USER$"; then
+  TCP_USER="$(PGPASSWORD="$DB_PASSWORD" psql -h 127.0.0.1 -U "$DB_USER" -d "$DB_NAME" -tAc "SELECT current_user" 2>/dev/null || true)"
+  if [ "$TCP_USER" = "$DB_USER" ]; then
     TCP_OK=1
     break
   fi
@@ -201,7 +222,7 @@ if [ "$HAS_SYSTEMD" -eq 1 ]; then
   info "Правила добавляются ДО включения ufw. БД (5432) откроется только для docker-сети,"
   info "интернету она недоступна. Если у вас VPN — укажите его порты (через запятую)."
 
-  SSH_PORT="$(sshd -T 2>/dev/null | awk '/^port /{print $2; exit}')"
+  SSH_PORT="$(sshd -T 2>/dev/null | awk '/^port /{print $2; exit}' || true)"
   [ -n "$SSH_PORT" ] || SSH_PORT=22
   ask SSH_PORT "Порт SSH" "$SSH_PORT"
   [[ "$SSH_PORT" =~ ^[0-9]+$ ]] || die "Некорректный порт SSH: $SSH_PORT"
@@ -290,6 +311,8 @@ else
 fi
 
 APP_DOMAIN="$(sed -n 's|^APP_DOMAIN=||p' "$ENV_FILE" | head -n 1)"
+[ -n "$APP_DOMAIN" ] ||
+  die "В $ENV_FILE нет APP_DOMAIN — перезапустите скрипт и ответьте «y» на вопрос о перезаписи env-файла."
 
 # ---------------------------------------------------------------- 5. compose
 compose() {
@@ -346,12 +369,16 @@ info "API — healthy."
 # ---------------------------------------------------------------- 7. verify
 log "Шаг 7. Проверка"
 
-if compose logs api 2>/dev/null | grep -q 'Production database migrations are up to date'; then
-  info "Миграции БД: «Production database migrations are up to date» (на пустой БД схема создана сама)."
-else
-  compose logs --tail 40 api >&2 || true
-  die "В логах API нет строки о миграциях — образ старый или БД недоступна."
-fi
+API_LOGS="$(compose logs api 2>/dev/null || true)"
+case "$API_LOGS" in
+  *"Production database migrations are up to date"*)
+    info "Миграции БД: «Production database migrations are up to date» (на пустой БД схема создана сама)."
+    ;;
+  *)
+    compose logs --tail 40 api >&2 || true
+    die "В логах API нет строки о миграциях — образ старый или БД недоступна."
+    ;;
+esac
 
 CODE="000"
 for _ in $(seq 1 60); do
