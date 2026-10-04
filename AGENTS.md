@@ -449,12 +449,32 @@ PATH и `Set-Location`, но запускать как `corepack pnpm …` дл�
   публичному запуску, пока DNS не разрешается.
 - Runtime environment-файл хранить только на Docker-хосте вне репозитория;
   не добавлять значения Production secrets в GitHub.
+- `.github/workflows/docker-publish.yml` публикует приватные API/web-образы в
+  GHCR по push в `main` и ручному запуску только для `main`; права ограничены
+  `contents: read` и `packages: write`. Перед login/build обеих публикаций
+  workflow требует Actions repository variable `VITE_GOOGLE_CLIENT_ID`; это
+  публичный OAuth client ID, а не секрет. В Compose использовать опубликованные
+  `ghcr.io/fast-iq/stockkeeper-api` и `stockkeeper-web`, по умолчанию `latest`;
+  на хосте для pull нужен GHCR `read:packages`. OAuth ID в веб-сборке и
+  runtime `GOOGLE_CLIENT_ID` API должны совпадать.
+- Docker workflow только собирает и публикует образы: не запускать Compose,
+  production API или миграции из GitHub Actions.
+- На 04.10.2026 Actions repository variable `VITE_GOOGLE_CLIENT_ID` ещё не
+  задана. Первый workflow-run остановится с понятной ошибкой до GHCR login и
+  публикации; чтобы получить образы, пользователь должен добавить публичный
+  OAuth client ID в Actions Variables и перезапустить workflow.
 - Проверки 04.10.2026: `docker compose config --quiet`, сборка обоих образов,
   `caddy validate`, `format:check`, lint, typecheck, тесты, build и
   `git diff --check` прошли. `pnpm audit --audit-level=high` сообщает о
   существующей high-уязвимости `braces` (см. ниже). Production-сервисы не
   запускались; временный контейнер использован только для проверки Caddy.
-  GitHub Actions-файлы не входили в текущую Docker-подготовку и не менялись.
+  Предыдущая Docker-подготовка не запускала Production-сервисы или миграции.
+  Настройка публикации GHCR описана выше и в `deploy/docker/README.md`.
+- Проверки изменений GHCR: `yq` разобрал workflow и Compose YAML, Compose
+  конфигурация проверена с синтетическими непроизводственными значениями;
+  `format:check`, lint, typecheck, тесты, build и `git diff --check` прошли.
+  Audit остаётся на прежней high-уязвимости `braces`. Публикация образов и
+  Production-сервисы в проверках не запускались.
 
 ### Проверка перед синхронизацией GitHub (03.10.2026)
 

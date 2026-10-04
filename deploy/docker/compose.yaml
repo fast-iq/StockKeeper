@@ -2,9 +2,7 @@ name: stockkeeper
 
 services:
   api:
-    build:
-      context: ../..
-      dockerfile: deploy/docker/Dockerfile.api
+    image: ghcr.io/fast-iq/stockkeeper-api:${IMAGE_TAG:-latest}
     restart: unless-stopped
     init: true
     environment:
@@ -28,12 +26,7 @@ services:
       - no-new-privileges:true
 
   web:
-    build:
-      context: ../..
-      dockerfile: deploy/docker/Dockerfile.web
-      args:
-        BASE_PATH: /
-        VITE_GOOGLE_CLIENT_ID: "${GOOGLE_CLIENT_ID:?Set GOOGLE_CLIENT_ID in the host env file}"
+    image: ghcr.io/fast-iq/stockkeeper-web:${IMAGE_TAG:-latest}
     restart: unless-stopped
     environment:
       APP_DOMAIN: "${APP_DOMAIN:?Set APP_DOMAIN in the host env file}"

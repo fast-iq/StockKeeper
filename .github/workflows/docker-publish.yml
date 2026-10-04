@@ -1,0 +1,82 @@
+name: Publish Docker images
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  publish:
+    name: Build and publish API and web images
+    runs-on: ubuntu-24.04
+    if: github.repository_owner == 'fast-iq' && github.ref == 'refs/heads/main'
+    env:
+      VITE_GOOGLE_CLIENT_ID: ${{ vars.VITE_GOOGLE_CLIENT_ID }}
+    steps:
+      - name: Validate web OAuth configuration
+        run: |
+          if [ -z "$VITE_GOOGLE_CLIENT_ID" ]; then
+            echo "::error::Add VITE_GOOGLE_CLIENT_ID as a GitHub Actions repository variable before publishing images."
+            exit 1
+          fi
+
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Prepare API image metadata
+        id: api-meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/fast-iq/stockkeeper-api
+          tags: |
+            type=raw,value=latest
+            type=sha,format=long
+
+      - name: Build and publish API image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: deploy/docker/Dockerfile.api
+          push: true
+          tags: ${{ steps.api-meta.outputs.tags }}
+          labels: ${{ steps.api-meta.outputs.labels }}
+          cache-from: type=gha,scope=api
+          cache-to: type=gha,mode=max,scope=api
+
+      - name: Prepare web image metadata
+        id: web-meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/fast-iq/stockkeeper-web
+          tags: |
+            type=raw,value=latest
+            type=sha,format=long
+
+      - name: Build and publish web image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: deploy/docker/Dockerfile.web
+          push: true
+          build-args: |
+            BASE_PATH=/
+            VITE_GOOGLE_CLIENT_ID=${{ env.VITE_GOOGLE_CLIENT_ID }}
+          tags: ${{ steps.web-meta.outputs.tags }}
+          labels: ${{ steps.web-meta.outputs.labels }}
+          cache-from: type=gha,scope=web
+          cache-to: type=gha,mode=max,scope=web

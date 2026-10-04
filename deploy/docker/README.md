@@ -1,11 +1,19 @@
 # Docker deployment preparation
 
-This setup builds two containers:
+This setup runs two containers pulled from GitHub Container Registry (GHCR):
 
 - `web`: Caddy serves the built StockKeeper interface, proxies `/api` to the API
   container, and obtains HTTPS certificates for `APP_DOMAIN`.
 - `api`: the Node.js API. It connects to the existing PostgreSQL server on the
   Docker host; Compose does not create or publish a PostgreSQL container.
+
+The private images are `ghcr.io/fast-iq/stockkeeper-api` and
+`ghcr.io/fast-iq/stockkeeper-web`. GitHub Actions publishes `latest` and a full
+commit-SHA tag when code is pushed to `main`, and supports manual runs from
+`main`. The workflow requires the repository Actions variable
+`VITE_GOOGLE_CLIENT_ID`; it fails before either image is published if the
+variable is missing. Set it to the public Google OAuth client ID configured for
+the final HTTPS origin. The host's `GOOGLE_CLIENT_ID` must use the same value.
 
 The frontend and API share one HTTPS origin. This preserves the relative `/api`
 requests and secure `SameSite=Lax` session cookies.
@@ -19,6 +27,9 @@ requests and secure `SameSite=Lax` session cookies.
   `host.docker.internal` to the Docker host on Linux. PostgreSQL and the host
   firewall must allow the container's private bridge connection; do not expose
   the database port to the public internet for this setup.
+- Access to the private GHCR packages. Authenticate on the Docker host with a
+  GitHub personal access token that has `read:packages`; keep it in Docker's
+  credential store and do not put it in the application environment file.
 - A Google OAuth client configured for the final HTTPS origin.
 
 The hostname must resolve before starting Caddy. The FirstByte hostname checked
@@ -34,12 +45,13 @@ SMTP secrets in GitHub.
 
 Required variables:
 
-| Variable           | Purpose                                                          |
-| ------------------ | ---------------------------------------------------------------- |
-| `APP_DOMAIN`       | Working public hostname used by Caddy and the API CORS allowlist |
-| `GOOGLE_CLIENT_ID` | Public OAuth client ID, also embedded in the web build           |
-| `SESSION_SECRET`   | Session signing secret                                           |
-| `EXTERNAL_DB_URL`  | Existing PostgreSQL connection string for the API                |
+| Variable           | Purpose                                                               |
+| ------------------ | --------------------------------------------------------------------- |
+| `APP_DOMAIN`       | Working public hostname used by Caddy and the API CORS allowlist      |
+| `GOOGLE_CLIENT_ID` | Public OAuth client ID, also embedded in the web build                |
+| `SESSION_SECRET`   | Session signing secret                                                |
+| `EXTERNAL_DB_URL`  | Existing PostgreSQL connection string for the API                     |
+| `IMAGE_TAG`        | Optional GHCR tag; defaults to `latest`, or pin to a full `sha-…` tag |
 
 Optional email fallback variables: `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`,
 `SMTP_PASS`, `SMTP_FROM`, and `RESEND_FROM_EMAIL`. The application currently
@@ -52,15 +64,19 @@ certificate hostname. The `host.docker.internal` alias is available when the
 connection should go to PostgreSQL on this same machine; do not disable
 certificate validation to work around a hostname mismatch.
 
-## Build and validate
+## Pull and validate
 
-Create the environment file on the server, outside the checkout, then validate
-the Compose configuration and build the images:
+Create the environment file on the server, outside the checkout. Log in to GHCR
+using a GitHub account with access to the private packages, then validate the
+Compose configuration and pull the published images:
 
 ```sh
 sudo install -d -m 700 /etc/stockkeeper
 sudo install -m 600 /dev/null /etc/stockkeeper/stockkeeper.env
 sudoedit /etc/stockkeeper/stockkeeper.env
+
+# Authenticate interactively; use a token with read:packages when prompted.
+docker login ghcr.io --username YOUR_GITHUB_USERNAME
 
 docker compose \
   --env-file /etc/stockkeeper/stockkeeper.env \
@@ -68,10 +84,12 @@ docker compose \
 
 docker compose \
   --env-file /etc/stockkeeper/stockkeeper.env \
-  -f deploy/docker/compose.yaml build
+  -f deploy/docker/compose.yaml pull
 ```
 
-Image builds do not start the API and do not contact PostgreSQL.
+To pin both containers to one published commit, set `IMAGE_TAG=sha-<full-commit-sha>`
+in the host environment file. `latest` follows the most recent successful push
+to `main`; run `docker compose pull` again to fetch a newer image.
 
 ## Before starting containers
 
