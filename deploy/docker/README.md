@@ -1,6 +1,8 @@
 # Docker deployment preparation
 
-This setup runs two containers pulled from GitHub Container Registry (GHCR):
+This setup runs two containers, either pulled from GitHub Container Registry
+(GHCR) or built locally on the Docker host (see "Building images locally"
+below):
 
 - `web`: Caddy serves the built StockKeeper interface, proxies `/api` to the API
   container, and obtains HTTPS certificates for `APP_DOMAIN`.
@@ -90,6 +92,24 @@ docker compose \
 To pin both containers to one published commit, set `IMAGE_TAG=sha-<full-commit-sha>`
 in the host environment file. `latest` follows the most recent successful push
 to `main`; run `docker compose pull` again to fetch a newer image.
+
+## Building images locally instead of pulling
+
+If the GHCR images are not available yet — the first workflow run stops before
+publishing until the `VITE_GOOGLE_CLIENT_ID` Actions variable is set — build
+both images on the Docker host from a full repository checkout:
+
+```sh
+docker compose \
+  --env-file /etc/stockkeeper/stockkeeper.env \
+  -f deploy/docker/compose.yaml build
+```
+
+The web image receives `GOOGLE_CLIENT_ID` from the environment file as the
+`VITE_GOOGLE_CLIENT_ID` build argument; both must equal the OAuth client ID of
+the final HTTPS origin. Local builds keep the same `ghcr.io/...` image names,
+so a later `docker compose pull` replaces them once the workflow publishes
+images. Use `up -d --build` to rebuild after code changes.
 
 ## Before starting containers
 

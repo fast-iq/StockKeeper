@@ -475,6 +475,42 @@ PATH и `Set-Location`, но запускать как `corepack pnpm …` дл�
   `format:check`, lint, typecheck, тесты, build и `git diff --check` прошли.
   Audit остаётся на прежней high-уязвимости `braces`. Публикация образов и
   Production-сервисы в проверках не запускались.
+- `compose.yaml` дополнен секциями `build:` для api и web (context — корень
+  репо, относительно файла compose; web получает build-arg
+  `VITE_GOOGLE_CLIENT_ID` из `GOOGLE_CLIENT_ID`). Это позволяет собрать образы
+  локально на Docker-хосте до первой успешной публикации GHCR (Actions-переменная
+  `VITE_GOOGLE_CLIENT_ID` не задана); путь `pull` из GHCR сохранён, README
+  дополнен разделом локальной сборки.
+
+### Product-БД на внешнем сервере: развёртывание схемы (04.10.2026)
+
+- БД `stockkeeper` на `83.147.243.54:6543` (строка подключения — секрет,
+  передавалась вне репо; в код/AGENTS её не записывать). Строка указана в
+  Docker-как `EXTERNAL_DB_URL` для Production.
+- Состояние до: PostgreSQL 17.11, **пустая** — только `public.__drizzle_migrations`
+  (0 строк), ни одной из 11 таблиц приложения, журнал миграций пуст.
+- Выполнено (с согласия пользователя): `drizzle-kit push` (создал все 11 таблиц),
+  затем `migrate` (записал `0000_shop_price_history` в журнал; все statement'ы
+  идемпотентны — стали no-op).
+- **Как запускать push неинтерактивно**: `--config` нельзя комбинировать с
+  прочими флагами — передавать `--url/--dialect/--schema` явно; вопрос
+  «created or renamed» (из-за пары journal-таблица ↔ первая таблица схемы)
+  обходится фильтром
+  `--tablesFilter "users,categories,units,locations,items,shopping_list,password_reset_tokens,session,shops,item_prices,price_settings"`.
+  `--force` не нужен. После DDL push пытается выполнить
+  `DROP SEQUENCE __drizzle_migrations_id_seq` (таблица отфильтрована из
+  сравнения) и падает с `2BP01` — безвредно: к этому моменту все CREATE/ALTER
+  уже выполнены, sequence и журнал остаются на месте.
+- Повторный запуск `migrate` на этой БД безопасен (adoption-миграция
+  идемпотентна). Идти через `getProductionMigrationUrl` (EXTERNAL_DB_URL) —
+  штатный путь Production/Docker startup.
+- Итог проверки read-only-компаратором со snapshot `meta/0000_snapshot.json`:
+  **11/11 таблиц, 74/74 колонки, типы/дефолты/NULL/PK совпадают, FK 15/15,
+  все индексы (`session_expire_idx`, `shops_owner_name_key`,
+  `item_prices_owner_item_shop_date`, unique-индексы), журнал 1=1**;
+  данные пустые (users/items/item_prices = 0). Соответствие схеме — полное.
+- Файлы компараторов — во `%TEMP%\opencode\stores\` (`db1-3.js`,
+  `verify2.js`), в репо не копировать.
 
 ### Проверка перед синхронизацией GitHub (03.10.2026)
 
