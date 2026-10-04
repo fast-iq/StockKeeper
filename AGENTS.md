@@ -121,6 +121,16 @@ PATH и `Set-Location`, но запускать как `corepack pnpm …` дл�
     таймер действует до завершения чтения JSON и снимается в finally.
     Таймаут PATCH — неопределённый результат, не подтверждённый отказ записи.
 
+22. **Полная схема на пустой БД создаётся миграцией `lib/db/migrations/0000_shop_price_history.sql`**
+    (полный baseline: 11 таблиц с inline-FK,3 индекса, все `CREATE … IF NOT EXISTS`, затем
+    адоптационная дельта). Уже применённую запись журнала не переписывать: раннер `drizzle-orm`
+    (pg dialect) решает, применять ли миграцию, сравнивая `created_at` последней строки с
+    journal-`when` (`folderMillis`); hash SQL **не** сверяется, но `when` менять нельзя — иначе
+    существующие БД (Development/Production) переприменут файл. FK — только inline в
+    `CREATE TABLE` (отдельные `ALTER TABLE ADD CONSTRAINT` падают на легаси-таблицах и квалификатор
+    `public.` ломает тесты со случайной схемой). Любое расширение файла — только вместе с
+    прогоном сценария пустой БД в `artifacts/api-server/tests/migrations.integration.test.mjs`.
+
 ## 3. Изменения (проблема → фикс → файлы)
 
 ### Штрихкод и камера
@@ -512,6 +522,49 @@ PATH и `Set-Location`, но запускать как `corepack pnpm …` дл�
 - Файлы компараторов — во `%TEMP%\opencode\stores\` (`db1-3.js`,
   `verify2.js`), в репо не копировать.
 
+### Полная схема на пустой БД при старте API (04.10.2026)
+
+- Проблема: на чистой PostgreSQL `0000_shop_price_history` падал на `ALTER TABLE "items"`
+  (таблиц нет): базовая схема исторически создавалась только `drizzle-kit push`, а
+  Production startup (`artifacts/api-server/src/index.ts` → `runDatabaseMigrations`) выполняет
+  только журнальные миграции — контейнер API на пустой БД не поднимался.
+- Фикс: `lib/db/migrations/0000_shop_price_history.sql` расширен до полного идемпотентного
+  baseline — 11 таблиц,15 inline-FK (имена из `meta/0000_snapshot.json`),3 индекса, все
+  `CREATE … IF NOT EXISTS`; адоптационная дельта сохранена в конце. Тег и journal-`when`
+  не менялись — существующие БД запись пропускают (сравнение `created_at` ↔ `folderMillis`,
+  hash не используется). Сгенерированный `drizzle-kit` вывод приведён к inline-FK без
+  квалификатора `public.` (иначе падает легаси-сценарий и тесты со случайной схемой).
+  `drizzle-kit generate` подтверждает: «No schema changes» (drift отсутствует).
+- Тест: в `artifacts/api-server/tests/migrations.integration.test.mjs` добавлен сценарий на
+  пустой случайной схеме — 11 таблиц,15 FK,3 индекса, журнал=1, повторный запуск без изменений;
+  существующий легаси-сценарий сохранён.
+- Проверки: `format:check`, lint (0 warnings), typecheck, test (42 pass + 1 skip), build —
+  успешно; интеграционный runner 13/13 (11 обмена данными + 2 миграций) на отдельном
+  PostgreSQL 17 в Docker; смоук собранного `dist/index.mjs` с `NODE_ENV=production` на
+  абсолютно пустой БД: «Production database migrations are up to date», healthz 200,
+  в БД 11 таблиц / journal 1 / FK 15.
+
+### Развёртывание на VPS (04.10.2026, выполняется пошагово)
+
+- Сервер: Debian 13, **157.228.160.86** (хост менялся: vm4190214 → vm4717441), диск ~8.8 ГБ —
+  образы на хосте НЕ собирать (ENOSPC), только pull из GHCR; пакеты
+  `fast-iq/stockkeeper-api|web` публичны (без docker login). Репо клонирован в `/opt/stockkeeper`;
+  функция обвязки: `dc() { docker compose --env-file /etc/stockkeeper/stockkeeper.env -f /opt/stockkeeper/deploy/docker/compose.yaml "$@"; }`
+  (в новой сессии shell функцию объявить заново).
+- PostgreSQL 17 локально на хосте: БД/роль `stockkeeper`, `listen_addresses='*'`,
+  pg_hba `172.16.0.0/12 scram-sha-256`; порт **5432 закрыт от интернета** (проверено снаружи).
+- **ufw active** (deny incoming): `22/tcp`, `80/tcp`, `443` (tcp+udp — нужен для HTTP/3),
+  `5432/tcp ← 172.16.0.0/12` (docker→PG), VPN `1628/51628/51821`.
+- `/etc/stockkeeper/stockkeeper.env` (root, 600): `APP_DOMAIN=157-228-160-86.sslip.io`
+  (вариант A; переезд на домен = правка строки + пересоздание контейнеров + новый origin в
+  Google Cloud Console), `GOOGLE_CLIENT_ID` = Actions-переменная `VITE_GOOGLE_CLIENT_ID`
+  (зашивается в web-образ при сборке — после смены ID нужен rebuild), `SESSION_SECRET`,
+  `EXTERNAL_DB_URL=postgresql://stockkeeper:<pw>@host.docker.internal:5432/stockkeeper`
+  (пароль и строки подключения в AGENTS не записывать).
+- Осталось: коммит baseline-миграции → CI публикация образов → `git pull` + `dc pull` →
+  `dc up -d` → `dc ps` (healthy), `dc logs api` («Production database migrations are up to
+  date»), `curl https://157-228-160-86.sslip.io/api/healthz` — 200.
+
 ### Проверка перед синхронизацией GitHub (03.10.2026)
 
 - Перед отправкой кода проверена актуальная `main` через интеграцию GitHub;
@@ -844,16 +897,24 @@ M AGENTS.md # §3.6: второй прогон 0/0/0 + ограничение ru
 M .github/workflows/zap.yml # + cmd_options: '-z "-config pscans.pscanner(0)..."'
 M AGENTS.md # §3.6: 3-й/4-й прогон и механика -config; §5/§6
 
+Правки сессии 7 (полная схема на пустой БД + развёртывание VPS; коммит — после
+подтверждения пользователя):
+M lib/db/migrations/0000_shop_price_history.sql # +полный idempotent baseline (11 таблиц)
+M artifacts/api-server/tests/migrations.integration.test.mjs # +сценарий пустой БД
+M AGENTS.md # §2.22, §3 (baseline + VPS), §5, §6 (Docker/GHAS)
+
 ## 6. Окружение и известные ограничения
 
-- **Docker невозможен локально**: WSL не установлен (`wsl --status` → требуется установка). Для e2e использовался `embedded-postgres` (PostgreSQL 18.4, порт 5433) в `%TEMP%\opencode\pgtest\` — **временно**, системные изменения не вносились.
+- **Docker**: раньше был невозможен локально (без WSL, e2e шёл через `embedded-postgres`);
+  сейчас на рабочей машине работает Docker Desktop — на нём поднимаются временные
+  PostgreSQL-контейнеры для интеграционных тестов (`postgres:17-alpine`) и собираются образы.
 - Временные креды тестовой БД: `postgresql://postgres:pw-test-123@127.0.0.1:5433/stockkeeper` (только для тестов, не для прода).
 - `forgot-password` без настроенного SMTP/Resend отвечает **503** — это ожидаемо (токен при этом уже создаётся в БД).
 - Пароль от реального сервера БД `83.147.243.54` и `DATABASE_URL` пользователь вводит сам как секрет в Replit.
 - `websearch` (exa) даёт 403 — для advisory использовать `webfetch` на `github.com/advisories`.
-- **GHAS**: StockKeeper приватный, CodeQL и Dependency Review без лицензии GitHub Advanced Security не
-  работают → закрыты guard'ом `private == false` (в awg-easy работают, т.к. тот репозиторий публичный).
-  Если подключат GHAS — убрать guard в `codeql.yml`/`dependency-review.yml`.
+- **GHAS**: репозиторий `fast-iq/StockKeeper` **публичный** (с04.10.2026) → CodeQL и Dependency Review
+  работают, их guard `private == false` снят ими же и не мешает; если репозиторий снова станет
+  приватным без GHAS — вернуть guard в `codeql.yml`/`dependency-review.yml` (в awg-easy он есть).
 - **ZAP-скан**: прогон 1 — High 0 / Medium 1 / Low 2 / Info 5 (фикс: §3.6); прогон 2 после фиксов —
   **High 0 / Medium 0 / Low 0 / Info 5**, из них 4 × Sec-Fetch убраны удалением `cmd_options: "-a"`
   (alpha-правило 90005), остаётся 1 × 10049 ( следствие нашего `no-store`, безвредно).
