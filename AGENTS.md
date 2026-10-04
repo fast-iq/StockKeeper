@@ -561,9 +561,19 @@ PATH и `Set-Location`, но запускать как `corepack pnpm …` дл�
   (зашивается в web-образ при сборке — после смены ID нужен rebuild), `SESSION_SECRET`,
   `EXTERNAL_DB_URL=postgresql://stockkeeper:<pw>@host.docker.internal:5432/stockkeeper`
   (пароль и строки подключения в AGENTS не записывать).
-- Осталось: коммит baseline-миграции → CI публикация образов → `git pull` + `dc pull` →
-  `dc up -d` → `dc ps` (healthy), `dc logs api` («Production database migrations are up to
-  date»), `curl https://157-228-160-86.sslip.io/api/healthz` — 200.
+- Деплой выполнен 04.10.2026: baseline запушен (`11b7be0`), CI опубликовал образы,
+  `dc pull` + `dc up -d` → `stockkeeper-api-1` healthy, `stockkeeper-web-1` up;
+  `curl https://157-228-160-86.sslip.io/api/healthz` — 200 (заголовки Caddy/nosniff на месте).
+  Осталось: добавить origin `https://157-228-160-86.sslip.io` в Google Cloud Console
+  (Authorized JavaScript origins) — без этого Google-вход не работает.
+- `deploy/server-setup.sh` — идемпотентный скрипт развёртывания «с нуля» на чистом
+  Debian/Ubuntu: чеклист GitHub, apt, PostgreSQL (роль/БД/pg_hba/listen, TCP-проверка),
+  ufw (только при systemd), env-файл (промпты с подсказками откуда брать значения,
+  автодетект sslip-домена, 600), анонимная проверка GHCR-манифестов, compose
+  config/pull/up, ожидание health и проверка строки миграций в логах API.
+  Запуск на сервере: `sudo bash deploy/server-setup.sh` (повторный запуск безопасен:
+  существующий env-файл не перезапрашивается и не перезаписывается без подтверждения,
+  пароль БД берётся из него же).
 
 ### Проверка перед синхронизацией GitHub (03.10.2026)
 
@@ -897,11 +907,13 @@ M AGENTS.md # §3.6: второй прогон 0/0/0 + ограничение ru
 M .github/workflows/zap.yml # + cmd_options: '-z "-config pscans.pscanner(0)..."'
 M AGENTS.md # §3.6: 3-й/4-й прогон и механика -config; §5/§6
 
-Правки сессии 7 (полная схема на пустой БД + развёртывание VPS; коммит — после
-подтверждения пользователя):
+Правки сессии 7 (полная схема на пустой БД + развёртывание VPS + скрипт деплоя;
+коммит — после подтверждения пользователя):
 M lib/db/migrations/0000_shop_price_history.sql # +полный idempotent baseline (11 таблиц)
 M artifacts/api-server/tests/migrations.integration.test.mjs # +сценарий пустой БД
-M AGENTS.md # §2.22, §3 (baseline + VPS), §5, §6 (Docker/GHAS)
+A deploy/server-setup.sh # идемпотентный скрипт развёртывания с нуля (RU-промпты)
+M deploy/docker/README.md # публичные пакеты вместо «private + docker login», раздел про скрипт
+M AGENTS.md # §2.22, §3 (baseline + VPS + скрипт), §5, §6 (Docker/GHAS)
 
 ## 6. Окружение и известные ограничения
 
