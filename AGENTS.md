@@ -573,7 +573,18 @@ PATH и `Set-Location`, но запускать как `corepack pnpm …` дл�
   config/pull/up, ожидание health и проверка строки миграций в логах API.
   Запуск на сервере: `sudo bash deploy/server-setup.sh` (повторный запуск безопасен:
   существующий env-файл не перезапрашивается и не перезаписывается без подтверждения,
-  пароль БД берётся из него же).
+  пароль БД берётся из него же). Устойчивость к частичной установке: ретраи
+  `apt-get update/install` (лок dpkg), отказ от Docker → мягкий пропуск шагов 5-7
+  (`exit 0`), `sshd -T || true`; **`grep -q` в пайпах запрещён** — раннее закрытие
+  пайплайна даёт продюсеру EPIPE (255) и `pipefail` валит `if`; проверки вывода —
+  через захват в переменную и `case`/сравнение (поймано вживую на Шаге 7).
+- `deploy/server-update.sh` — обновление «до последних версий» + чистка хвостов:
+  `git pull --ff-only` (блокируется только изменением tracked-файлов; untracked не
+  мешает), apt update/upgrade (ретраи, `DPkg::Lock::Timeout`), compose pull/up,
+  ожидание health, проверка миграций/healthz, `docker image prune -a`, apt-кэш,
+  journal >7 дней; в отчёте — диск до/после и диапазон коммитов. Идемпотентен.
+  Оба скрипта проверены вживую на VPS и в контейнере (exit 0, повторные запуски).
+  Подробности для оператора — `deploy/RUNBOOK.ru.md`.
 
 ### Проверка перед синхронизацией GitHub (03.10.2026)
 
@@ -912,7 +923,9 @@ M AGENTS.md # §3.6: 3-й/4-й прогон и механика -config; §5/§6
 M lib/db/migrations/0000_shop_price_history.sql # +полный idempotent baseline (11 таблиц)
 M artifacts/api-server/tests/migrations.integration.test.mjs # +сценарий пустой БД
 A deploy/server-setup.sh # идемпотентный скрипт развёртывания с нуля (RU-промпты)
+A deploy/server-update.sh # обновление до последних версий + очистка (образы/apt/journal)
 M deploy/docker/README.md # публичные пакеты вместо «private + docker login», раздел про скрипт
+A deploy/RUNBOOK.ru.md # полная инструкция для оператора (RU)
 M AGENTS.md # §2.22, §3 (baseline + VPS + скрипт), §5, §6 (Docker/GHAS)
 
 ## 6. Окружение и известные ограничения
