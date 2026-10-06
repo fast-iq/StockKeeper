@@ -20,11 +20,15 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { TagInput } from "@/components/ui/tag-input";
+import { SourceSearch } from "@/components/SourceSearch";
 import { Package, ArrowLeft, Save, Loader2, Image, Copy } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
-import type { CategoryNode } from "@workspace/api-client-react";
+import type {
+  CategoryNode,
+  SourceSearchResultItem,
+} from "@workspace/api-client-react";
 import { parsePrice } from "@/lib/price";
 import { useTranslation } from "react-i18next";
 
@@ -102,6 +106,11 @@ function NewItemForm({
   const [photoPreview, setPhotoPreview] = useState<string>(
     copySource?.photoUrl ?? "",
   );
+  const [nameVal, setNameVal] = useState(copySource?.name ?? "");
+  const [priceVal, setPriceVal] = useState(
+    copySource?.legacyPrice?.toString() ?? "",
+  );
+  const [descVal, setDescVal] = useState(copySource?.description ?? "");
 
   const { data: categories } = useListCategories({
     query: { queryKey: getListCategoriesQueryKey() },
@@ -184,6 +193,12 @@ function NewItemForm({
     );
   };
 
+  const applyFromSource = (r: SourceSearchResultItem) => {
+    setNameVal(r.title);
+    if (r.price != null) setPriceVal(String(r.price));
+    if (r.imageUrl) setPhotoPreview(r.imageUrl);
+  };
+
   return (
     <div className="flex-1 overflow-y-auto">
       <div className="border-b border-border bg-card sticky top-0 z-10 px-6 py-4 flex items-center justify-between">
@@ -204,7 +219,18 @@ function NewItemForm({
         </div>
       </div>
 
-      <div className="max-w-3xl mx-auto p-6 md:p-8">
+      <div className="max-w-3xl mx-auto p-6 md:p-8 space-y-8">
+        <div>
+          <SourceSearch
+            mode="new"
+            onApply={applyFromSource}
+            initialQuery=""
+            initialQuantity={0}
+          />
+          <p className="text-xs text-muted-foreground mt-1.5">
+            {t("sources.newHint")}
+          </p>
+        </div>
         <form id="new-item-form" onSubmit={handleSubmit} className="space-y-8">
           <div className="bg-card rounded-xl border border-border p-6 shadow-sm space-y-6">
             <h2 className="text-lg font-semibold border-b border-border pb-2">
@@ -220,9 +246,11 @@ function NewItemForm({
                   id="name"
                   name="name"
                   required
-                  defaultValue={copySource?.name ?? ""}
+                  value={nameVal}
+                  onChange={(e) => setNameVal(e.target.value)}
                   placeholder={t("itemNew.itemNamePlaceholder")}
                   className="text-lg py-6 bg-background font-medium"
+                  data-testid="input-item-name"
                 />
               </div>
               <div className="space-y-2">
@@ -269,7 +297,8 @@ function NewItemForm({
                 <Textarea
                   id="description"
                   name="description"
-                  defaultValue={copySource?.description ?? ""}
+                  value={descVal}
+                  onChange={(e) => setDescVal(e.target.value)}
                   placeholder={t("itemNew.descriptionPlaceholder")}
                   className="bg-background"
                 />
@@ -305,7 +334,8 @@ function NewItemForm({
                   name="price"
                   type="text"
                   inputMode="decimal"
-                  defaultValue={copySource?.legacyPrice?.toString() ?? ""}
+                  value={priceVal}
+                  onChange={(e) => setPriceVal(e.target.value)}
                   placeholder={t("price.placeholder")}
                   className="font-mono bg-background"
                   data-testid="input-price"

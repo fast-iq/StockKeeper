@@ -188,6 +188,13 @@ PATH и `Set-Location`, но запускать как `corepack pnpm …` дл�
   `sku || barcode`, количество (для «итого за N шт»), список источников, «Найти», результаты с
   «Взять цену» (PATCH `price` + инвалидация кэшей) и ссылкой на страницу, управление своими
   источниками (добавить/удалить с подтверждением); ru/en ключи `sources.*` в `locales/*.json`.
+- **Страница создания** (`pages/item-new.tsx`, 06.10.2026): секция `<SourceSearch mode="new">`
+  первой карточкой **вне `<form>`** (внутри формы вложенная `<form>` управления источниками —
+  invalid HTML). Колбэк `onApply` заполняет поля новой карточки: `name` (title), `price`
+  (price, если не null), `photoUrl` (imageUrl, если есть) — кнопка результата «Заполнить карточку»
+  (без условия `price != null`, в отличие от detail-режима). Поля формы `name`/`price`/`description`
+  переведены в controlled state (иначе программная запись не видна submit'у через `FormData`);
+  `itemId` в компоненте опционален, PATCH-ветка — только detail-режим.
 - **Тесты**: `tests/source-search.test.mjs` (18 шт., injectable fetch/DNS, без сети: шаблоны,
   SSRF-блоки, редиректы, лимиты, экстракция JSON/JSON-LD/HTML-таблицы/og, orchestration) + скрипт
   `test:sources`, включённый в корневой `pnpm test`. Обновлён `migrations.integration.test.mjs`

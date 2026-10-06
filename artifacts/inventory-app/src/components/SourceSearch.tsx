@@ -43,10 +43,14 @@ const SOURCE_ERROR_CODES = [
 
 export function SourceSearch({
   itemId,
+  mode = "detail",
+  onApply,
   initialQuery,
   initialQuantity,
 }: {
-  itemId: number;
+  itemId?: number;
+  mode?: "detail" | "new";
+  onApply?: (r: SourceSearchResultItem) => void;
   initialQuery: string;
   initialQuantity: number;
 }) {
@@ -86,7 +90,9 @@ export function SourceSearch({
   const busy = search.isPending || updateItem.isPending;
 
   const refreshItem = () => {
-    qc.invalidateQueries({ queryKey: getGetItemQueryKey(itemId) });
+    if (itemId != null) {
+      qc.invalidateQueries({ queryKey: getGetItemQueryKey(itemId) });
+    }
     qc.invalidateQueries({ queryKey: getListItemsQueryKey() });
     qc.invalidateQueries({ queryKey: getGetRecentItemsQueryKey() });
     qc.invalidateQueries({ queryKey: getGetDashboardStatsQueryKey() });
@@ -118,10 +124,16 @@ export function SourceSearch({
     setTimeout(() => setApplied(false), 2500);
   };
 
-  const applyPrice = (price: number) => {
-    if (updateItem.isPending) return;
+  const applyResult = (r: SourceSearchResultItem) => {
+    if (mode === "new") {
+      if (!onApply) return;
+      onApply(r);
+      toastApplied();
+      return;
+    }
+    if (itemId == null || r.price == null || updateItem.isPending) return;
     updateItem.mutate(
-      { id: itemId, data: { price } },
+      { id: itemId, data: { price: r.price } },
       {
         onSuccess: () => {
           refreshItem();
@@ -286,7 +298,9 @@ export function SourceSearch({
         )}
         {applied && (
           <p className="text-xs text-primary" data-testid="text-price-applied">
-            {t("sources.priceApplied")}
+            {mode === "new"
+              ? t("sources.cardFilled")
+              : t("sources.priceApplied")}
           </p>
         )}
       </div>
@@ -323,17 +337,19 @@ export function SourceSearch({
                     )}
                   </div>
                 </div>
-                {r.price != null && (
+                {(mode === "new" || r.price != null) && (
                   <Button
                     type="button"
                     size="sm"
                     variant="outline"
                     className="h-7"
                     disabled={updateItem.isPending}
-                    onClick={() => applyPrice(r.price!)}
+                    onClick={() => applyResult(r)}
                     data-testid={`button-apply-price-${i}`}
                   >
-                    {t("sources.applyPrice")}
+                    {mode === "new"
+                      ? t("sources.fillCard")
+                      : t("sources.applyPrice")}
                   </Button>
                 )}
                 {r.url && (
