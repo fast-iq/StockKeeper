@@ -100,7 +100,7 @@ docker compose --env-file /etc/stockkeeper/stockkeeper.env \
 
 - Схема в БД: `sudo -u postgres psql -d stockkeeper -tAc \
 "select count(*) from information_schema.tables where table_schema='public'"`
-  → `12` (11 таблиц приложения + журнал миграций).
+  → `13` (12 таблиц приложения + журнал миграций).
 
 ## 5. Ежедневная эксплуатация
 
@@ -128,14 +128,20 @@ docker compose --env-file /etc/stockkeeper/stockkeeper.env \
 
 Статус и логи — те же пути с `ps` и `logs -f api`.
 
-**Резервные копии (рекомендуется настроить сразу):**
+**Резервные копии (настроено 06.10.2026):**
 
-```sh
-install -d -m 700 /var/backups/stockkeeper
-sudo -u postgres pg_dump -Fc stockkeeper > /var/backups/stockkeeper/$(date +%F).dump
-```
+- Скрипт `/usr/local/sbin/stockkeeper-backup.sh`: `pg_dump -Fc` в
+  `/var/backups/stockkeeper/stockkeeper-<метка времени>.dump` (владелец
+  `postgres:postgres`, режим 600, каталог 750 root:postgres), проверка
+  читаемости через `pg_restore -l`, ротация — 14 дней, защита от
+  параллельного запуска через `flock`.
+- Cron в `/etc/crontab`: ежедневно в `04:30`, журнал —
+  `/var/log/stockkeeper-backup.log`.
+- Проверка вручную: `bash /usr/local/sbin/stockkeeper-backup.sh`.
+- Восстановление: `sudo -u postgres pg_restore -d stockkeeper <дамп>`.
 
-Ротация по cron и хранение копий **вне сервера** (S3/другой хост).
+Копии хранятся только **на сервере** — раз в несколько дней/недель выгружать
+дампы вовне (S3/другой хост): сервер — не единственное место хранения.
 
 **Письма (сброс пароля)** без SMTP отвечают `503` — это ожидаемо. Когда
 понадобится почта: заполнить `SMTP_HOST/SMTP_PORT/SMTP_USER/SMTP_PASS/
