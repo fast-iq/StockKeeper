@@ -130,8 +130,60 @@ PATH и `Set-Location`, но запускать как `corepack pnpm …` дл�
     `CREATE TABLE` (отдельные `ALTER TABLE ADD CONSTRAINT` падают на легаси-таблицах и квалификатор
     `public.` ломает тесты со случайной схемой). Любое расширение файла — только вместе с
     прогоном сценария пустой БД в `artifacts/api-server/tests/migrations.integration.test.mjs`.
+    После `0001_data_sources` пустая БД заканчивает с **12 таблицами / 16 FK / 4 индексами /
+    journal = 2** — соответствующие ожидания в этом же тесте.
+
+23. **Прокси поиска по источникам (`services/source-search.ts`) — только через SSRF-гард**:
+    разрешены лишь http/https без креденшелов; локальные имена (`localhost`/`.local`/`.internal`),
+    IP-literal'ы и **все** DNS-ответы резолвера на приватные/loopback/link-local/CGNAT/multicast
+    блокируются; каждый редирект (≤3 hops) проверяется заново, таймаут 8 с, лимит тела 2 МиБ,
+    rate-limit 30/мин на аккаунт. Шаблоны — только с `{sku}`/`{barcode}`
+    (`validateTemplateSyntax` до записи в БД). TOCTOU между DNS-проверкой и connect принят
+    и документирован — guard не упрощать и не отключать ради «работы» внутренних адресов.
 
 ## 3. Изменения (проблема → фикс → файлы)
+
+### Источники сбора данных (06.10.2026)
+
+- **Задача**: в карточке товара секция «артикул/ШК + количество + провайдер (шаблон URL)» →
+  серверный прокси подтягивает данные (название/цена/ссылка) в приложение.
+- **Схема**: `lib/db/src/schema/data-sources.ts` — таблица `data_sources` (id serial, userId →
+  users cascade NOT NULL, name, urlTemplate, createdAt, unique `(userId, name)`), экспорт из
+  `schema/index.ts`. Миграция **`lib/db/migrations/0001_data_sources.sql`** (тег/`when` в
+  journal `meta/_journal.json` менять нельзя — инвариант 22): обычная `CREATE TABLE`
+  (без `public.`-квалификатора) + inline FK + unique index; `drizzle-kit generate` подтверждает
+  «No schema changes». Свежий сценарий миграций: 12 таблиц / 16 FK / 4 индекса / journal = 2.
+- **API** (`artifacts/api-server/src/routes/data-sources.ts`, подключён в `routes/index.ts`):
+  `GET /data-sources` (встроенные WB/Ozon/Авито/Мегамаркет/Яндекс.Маркет сидируются только при
+  пустом списке — удалённые вручную не воскресают, пока есть хоть один источник),
+  `POST /data-sources` (zod `CreateDataSourceBody` → `validateTemplateSyntax` → 409 на дубль
+  имени по `23505`), `DELETE /data-sources/:id` (owner-only, 204/404),
+  `POST /data-sources/search` (`SearchDataSourcesBody`, rate-limit 30/мин по userId,
+  источник чужой → 404).
+- **Сервис** `services/source-search.ts`: `buildSearchUrl` (`{sku}`/`{barcode}` →
+  encodeURIComponent), SSRF-гард (инвариант 23), `fetchValidated` (redirect: manual, ≤3 с
+  повторной валидацией, AbortSignal.timeout 8с, стриминговый лимит 2 МиБ), экстрактор
+  JSON (`hits`/`products`/`items`/`results`/`data` + `offers`, WB `salePrice.u`) →
+  JSON-LD (`Product`/`ItemList`) → og-meta, до 10 результатов, `parsePrice` без unsafe-regex.
+  Ошибки источника (timeout/network/too-large/bad-format/redirect-loop) → ответ
+  `200 {results: [], sourceError: <code>}` — UI переводит код; блок SSRF/плохой шаблон → 400.
+- **openapi + codegen**: пути `/data-sources`, `/data-sources/search`, `/data-sources/{id}`;
+  схемы `DataSource`, `CreateDataSourceBody`, `SearchDataSourcesBody`, `SourceSearchResult{,Item}`;
+  `pnpm --filter @workspace/api-spec codegen` обновил `lib/api-client-react` (хуки
+  `useListDataSources`/`useCreateDataSource`/`useDeleteDataSource`/`useSearchDataSources`)
+  и `lib/api-zod`.
+- **UI**: `components/SourceSearch.tsx` в правой колонке `item-detail.tsx` — префилл запроса из
+  `sku || barcode`, количество (для «итого за N шт»), список источников, «Найти», результаты с
+  «Взять цену» (PATCH `price` + инвалидация кэшей) и ссылкой на страницу, управление своими
+  источниками (добавить/удалить с подтверждением); ru/en ключи `sources.*` в `locales/*.json`.
+- **Тесты**: `tests/source-search.test.mjs` (16 шт., injectable fetch/DNS, без сети: шаблоны,
+  SSRF-блоки, редиректы, лимиты, экстракция JSON/JSON-LD/og, orchestration) + скрипт
+  `test:sources`, включённый в корневой `pnpm test`. Обновлён `migrations.integration.test.mjs`
+  (12/16/4/journal=2) — локальный прогон требует PostgreSQL с ролью `transfer_test`
+  (Docker/WSL сейчас недоступны, см. §6 — прогнать в CI или после восстановления Docker).
+- **Проверки**: format:check, lint (0/0), typecheck, test (57 pass + 1 skip), build,
+  `git diff --check`, `drizzle-kit generate` — успешно. Audit: устранены 4 новых advisory
+  (см. §3.1), остаётся известный `braces` (high, без патча).
 
 ### Штрихкод и камера
 
@@ -629,6 +681,19 @@ PATH и `Set-Location`, но запускать как `corepack pnpm …` дл�
 - правило-ключ матчится по **запрашиваемому/текущему диапазону родителя**; старые правила по тому же пакету могут «перехватить» матч и оставить уязвимую версию → при обновлении уязвимого пакета **заменять старые правила, а не добавлять рядом**;
 - `ajv` просит `fast-uri: ^3.0.1`, а фактически стояла 4.1.3 (наследие override `>=3.1.4`) — поэтому ключ правила был расширен до `>=3.0.0`.
 
+**06.10.2026 — 4 новых advisory** (registry обновился; фикс — overrides в `pnpm-workspace.yaml`,
+`pnpm install` зелёный, `pnpm audit` показывает только braces):
+
+| Advisory                                                 | Severity | Правило                                                                                         |
+| -------------------------------------------------------- | -------- | ----------------------------------------------------------------------------------------------- |
+| proxy-addr GHSA-jqcg-44mw-7w3h (express)                 | critical | `proxy-addr@>=1.1.0 <2.0.8: ">=2.0.8"`                                                          |
+| source-map-js GHSA-68fv-2mgg-jv7q (tailwindcss)          | high     | `source-map-js@>=1.0.0 <1.2.2: ">=1.2.2"`                                                       |
+| fast-copy GHSA-jggr-w7fw-pc2j (pino-pretty)              | moderate | `fast-copy@>=4.0.0 <4.1.0: ">=4.1.0"`                                                           |
+| postcss-selector-parser GHSA-rj75-hqrm-r3gf (typography) | moderate | `postcss-selector-parser@<7.1.6: ">=7.1.6"` (major 6→7; проверено полной сборкой inventory-app) |
+
+Остаётся `braces <=3.0.3` (GHSA-vfj7-8cjw-p6xm, patched `<0.0.0`, mockup-sandbox → fast-glob) —
+CI `security-audit` красный, как и раньше; не отключать и не выдавать за чистый аудит.
+
 ### 3.2 Код API (`artifacts/api-server/src/…`)
 
 | Проблема                                                                                                                                   | Фикс                                                                                                                                                                      | Файл(ы)                                       |
@@ -928,11 +993,36 @@ M deploy/docker/README.md # публичные пакеты вместо «priva
 A deploy/RUNBOOK.ru.md # полная инструкция для оператора (RU)
 M AGENTS.md # §2.22, §3 (baseline + VPS + скрипт), §5, §6 (Docker/GHAS)
 
+Правки сессии 8 (фича «Источники сбора данных» + audit-overrides; коммит — после
+подтверждения пользователя):
+A lib/db/src/schema/data-sources.ts # таблица data*sources (unique userId+name)
+A lib/db/migrations/0001_data_sources.sql # +meta/0001_snapshot.json, journal 0001 (без public.)
+M lib/db/src/schema/index.ts # export * from "./data-sources"
+M lib/api-spec/openapi.yaml # пути /data-sources{,/search,/{id}} + схемы (+codegen)
+M lib/api-client-react/src/generated/api{.ts,.schemas.ts} # хуки use{List,Create,Delete}DataSources, useSearchDataSources
+M lib/api-zod/src/generated/\_ # zod-схемы + types/{createDataSourceBody,dataSource,searchDataSourceBody,sourceSearchResult{,Item}}.ts (новые)
+A artifacts/api-server/src/services/source-search.ts # SSRF-гард + шаблоны + fetch + экстрактор
+A artifacts/api-server/src/routes/data-sources.ts # CRUD + search-прокси (rate-limit 30/мин)
+M artifacts/api-server/src/routes/index.ts # + dataSourcesRouter
+A artifacts/api-server/tests/source-search.test.mjs # 16 юнит-тестов (injectable fetch/DNS)
+M artifacts/api-server/package.json # + test:sources
+M package.json # test-цепочка + test:sources
+M artifacts/api-server/tests/migrations.integration.test.mjs # 12/16/4/journal=2 + data_sources в легаси
+A artifacts/inventory-app/src/components/SourceSearch.tsx # секция в item-detail
+M artifacts/inventory-app/src/pages/item-detail.tsx # монтаж <SourceSearch/>
+M artifacts/inventory-app/src/i18n/locales/{ru,en}.json # ключи sources.\*
+M pnpm-workspace.yaml / pnpm-lock.yaml # +4 overrides (proxy-addr, source-map-js, fast-copy, postcss-selector-parser)
+M AGENTS.md # инвариант 23, §3 (фича), §3.1 (audit 06.10), §5, §6 (WSL/Docker)
+
 ## 6. Окружение и известные ограничения
 
 - **Docker**: раньше был невозможен локально (без WSL, e2e шёл через `embedded-postgres`);
-  сейчас на рабочей машине работает Docker Desktop — на нём поднимаются временные
-  PostgreSQL-контейнеры для интеграционных тестов (`postgres:17-alpine`) и собираются образы.
+  затем на рабочей машине работал Docker Desktop. **06.10.2026: WSL не установлен
+  (`wsl -l -v` → «Подсистема… не установлена»), Docker Desktop не стартует** — временные
+  PostgreSQL-контейнеры локально не поднять. Установка WSL требует `wsl --install` + перезагрузки
+  (не выполнять без пользователя). Интеграционные тесты (`test:integration`) гонять в CI
+  (job Backup restore с PostgreSQL service) или после восстановления Docker.
+  До 06.10.2026 на нём поднимались `postgres:17-alpine` для интеграционных тестов и сборка образов.
 - Временные креды тестовой БД: `postgresql://postgres:pw-test-123@127.0.0.1:5433/stockkeeper` (только для тестов, не для прода).
 - `forgot-password` без настроенного SMTP/Resend отвечает **503** — это ожидаемо (токен при этом уже создаётся в БД).
 - Пароль от реального сервера БД `83.147.243.54` и `DATABASE_URL` пользователь вводит сам как секрет в Replit.

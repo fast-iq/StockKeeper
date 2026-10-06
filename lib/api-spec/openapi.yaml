@@ -806,6 +806,108 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /data-sources:
+    get:
+      operationId: listDataSources
+      tags: [data-sources]
+      summary: List data collection sources for the current user
+      responses:
+        "200":
+          description: Data sources
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/DataSource"
+    post:
+      operationId: createDataSource
+      tags: [data-sources]
+      summary: Create a custom data collection source
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateDataSourceBody"
+      responses:
+        "201":
+          description: Source created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DataSource"
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Source with this name already exists
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /data-sources/search:
+    post:
+      operationId: searchDataSources
+      tags: [data-sources]
+      summary: Search a data source by SKU or barcode through the server proxy
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SearchDataSourceBody"
+      responses:
+        "200":
+          description: Search results (may be empty when the source found nothing)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SourceSearchResult"
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Source not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: Too many searches
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /data-sources/{id}:
+    delete:
+      operationId: deleteDataSource
+      tags: [data-sources]
+      summary: Delete a data collection source
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
 components:
   schemas:
     ShopInput:
@@ -1487,3 +1589,75 @@ components:
       required:
         - token
         - password
+
+    DataSource:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        urlTemplate:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - name
+        - urlTemplate
+        - createdAt
+
+    CreateDataSourceBody:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 60
+        urlTemplate:
+          type: string
+          minLength: 10
+          maxLength: 500
+      required:
+        - name
+        - urlTemplate
+
+    SearchDataSourceBody:
+      type: object
+      properties:
+        sourceId:
+          type: integer
+        query:
+          type: string
+          minLength: 1
+          maxLength: 100
+      required:
+        - sourceId
+        - query
+
+    SourceSearchResultItem:
+      type: object
+      properties:
+        title:
+          type: string
+        price:
+          type: ["number", "null"]
+        url:
+          type: ["string", "null"]
+        imageUrl:
+          type: ["string", "null"]
+      required:
+        - title
+
+    SourceSearchResult:
+      type: object
+      properties:
+        results:
+          type: array
+          items:
+            $ref: "#/components/schemas/SourceSearchResultItem"
+        sourceError:
+          type: string
+      required:
+        - results

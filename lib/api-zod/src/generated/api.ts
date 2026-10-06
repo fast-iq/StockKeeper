@@ -1012,3 +1012,71 @@ export const DeleteShoppingListItemParams = zod.object({
 })
 
 export const DeleteShoppingListItemResponse = zod.void()
+
+
+/**
+ * @summary List data collection sources for the current user
+ */
+export const ListDataSourcesResponseItem = zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "urlTemplate": zod.string(),
+  "createdAt": zod.coerce.date()
+})
+export const ListDataSourcesResponse = zod.array(ListDataSourcesResponseItem)
+
+
+/**
+ * @summary Create a custom data collection source
+ */
+export const createDataSourceBodyNameMax = 60;
+
+export const createDataSourceBodyUrlTemplateMin = 10;
+export const createDataSourceBodyUrlTemplateMax = 500;
+
+
+
+export const CreateDataSourceBody = zod.object({
+  "name": zod.string().min(1).max(createDataSourceBodyNameMax),
+  "urlTemplate": zod.string().min(createDataSourceBodyUrlTemplateMin).max(createDataSourceBodyUrlTemplateMax)
+})
+
+export const CreateDataSourceResponse = zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "urlTemplate": zod.string(),
+  "createdAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Search a data source by SKU or barcode through the server proxy
+ */
+export const searchDataSourcesBodyQueryMax = 100;
+
+
+
+export const SearchDataSourcesBody = zod.object({
+  "sourceId": zod.number(),
+  "query": zod.string().min(1).max(searchDataSourcesBodyQueryMax)
+})
+
+export const SearchDataSourcesResponse = zod.object({
+  "results": zod.array(zod.object({
+  "title": zod.string(),
+  "price": zod.number().nullish(),
+  "url": zod.string().nullish(),
+  "imageUrl": zod.string().nullish()
+})),
+  "sourceError": zod.string().optional()
+})
+
+
+/**
+ * @summary Delete a data collection source
+ */
+export const DeleteDataSourceParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const DeleteDataSourceResponse = zod.void()

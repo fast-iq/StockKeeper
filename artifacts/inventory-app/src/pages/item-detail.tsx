@@ -25,6 +25,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ItemPrices } from "@/components/ItemPrices";
+import { SourceSearch } from "@/components/SourceSearch";
 import { TagInput } from "@/components/ui/tag-input";
 import {
   Package,
@@ -594,6 +595,11 @@ export default function ItemDetailPage() {
 
               <div className="space-y-6">
                 <ItemPrices itemId={id} legacyPrice={item.legacyPrice} />
+                <SourceSearch
+                  itemId={id}
+                  initialQuery={item.sku || item.barcode || ""}
+                  initialQuantity={quantity}
+                />
                 <div className="bg-card rounded-xl border border-border overflow-hidden">
                   <div className="bg-muted/50 p-4 border-b border-border flex items-center justify-between">
                     <h3 className="font-semibold text-sm uppercase tracking-wider">

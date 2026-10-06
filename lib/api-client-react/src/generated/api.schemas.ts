@@ -478,6 +478,50 @@ export interface ResetPasswordBody {
   password: string;
 }
 
+export interface DataSource {
+  id: number;
+  name: string;
+  urlTemplate: string;
+  createdAt: string;
+}
+
+export interface CreateDataSourceBody {
+  /**
+     * @minLength 1
+     * @maxLength 60
+     */
+  name: string;
+  /**
+     * @minLength 10
+     * @maxLength 500
+     */
+  urlTemplate: string;
+}
+
+export interface SearchDataSourceBody {
+  sourceId: number;
+  /**
+     * @minLength 1
+     * @maxLength 100
+     */
+  query: string;
+}
+
+export interface SourceSearchResultItem {
+  title: string;
+  /** @nullable */
+  price?: number | null;
+  /** @nullable */
+  url?: string | null;
+  /** @nullable */
+  imageUrl?: string | null;
+}
+
+export interface SourceSearchResult {
+  results: SourceSearchResultItem[];
+  sourceError?: string;
+}
+
 export type ExportDataParams = {
 format: ExportDataFormat;
 };

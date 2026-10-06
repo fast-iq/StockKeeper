@@ -10,6 +10,7 @@ import unitsRouter from "./units";
 import shoppingListRouter from "./shopping-list";
 import dataTransferRouter from "./data-transfer";
 import pricesRouter from "./prices";
+import dataSourcesRouter from "./data-sources";
 
 const router: IRouter = Router();
 
@@ -24,5 +25,6 @@ router.use(adminRouter);
 router.use(shoppingListRouter);
 router.use(dataTransferRouter);
 router.use(pricesRouter);
+router.use(dataSourcesRouter);
 
 export default router;

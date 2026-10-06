@@ -53,6 +53,7 @@ test("migrations create the complete schema on an empty database", async () => {
 
       const expectedTables = [
         "categories",
+        "data_sources",
         "item_prices",
         "items",
         "locations",
@@ -83,7 +84,7 @@ test("migrations create the complete schema on an empty database", async () => {
          WHERE connamespace = $1::regnamespace AND contype = 'f'`,
         [freshSchemaName],
       );
-      assert.equal(foreignKeys.rows[0].count, 15);
+      assert.equal(foreignKeys.rows[0].count, 16);
 
       const indexes = await verify.query(
         `SELECT indexname
@@ -94,6 +95,7 @@ test("migrations create the complete schema on an empty database", async () => {
         [
           freshSchemaName,
           [
+            "data_sources_owner_name_key",
             "item_prices_owner_item_shop_date",
             "session_expire_idx",
             "shops_owner_name_key",
@@ -103,6 +105,7 @@ test("migrations create the complete schema on an empty database", async () => {
       assert.deepEqual(
         indexes.rows.map((row) => row.indexname),
         [
+          "data_sources_owner_name_key",
           "item_prices_owner_item_shop_date",
           "session_expire_idx",
           "shops_owner_name_key",
@@ -112,7 +115,7 @@ test("migrations create the complete schema on an empty database", async () => {
       const migrationCount = await verify.query(
         'SELECT count(*)::integer AS count FROM "__drizzle_migrations"',
       );
-      assert.equal(migrationCount.rows[0].count, 1);
+      assert.equal(migrationCount.rows[0].count, 2);
     } finally {
       verify.release();
     }
@@ -180,17 +183,20 @@ test("tracked migrations preserve existing rows and are safe to rerun", async ()
          WHERE table_schema = $1
            AND table_name = ANY($2::text[])
          ORDER BY table_name`,
-        [schemaName, ["item_prices", "price_settings", "shops"]],
+        [
+          schemaName,
+          ["data_sources", "item_prices", "price_settings", "shops"],
+        ],
       );
       assert.deepEqual(
         priceTables.rows.map((row) => row.table_name),
-        ["item_prices", "price_settings", "shops"],
+        ["data_sources", "item_prices", "price_settings", "shops"],
       );
 
       const migrationCount = await verify.query(
         'SELECT count(*)::integer AS count FROM "__drizzle_migrations"',
       );
-      assert.equal(migrationCount.rows[0].count, 1);
+      assert.equal(migrationCount.rows[0].count, 2);
     } finally {
       verify.release();
     }

@@ -8,6 +8,13 @@
       "when": 1791084623322,
       "tag": "0000_shop_price_history",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1791267056593,
+      "tag": "0001_data_sources",
+      "breakpoints": true
     }
   ]
 }

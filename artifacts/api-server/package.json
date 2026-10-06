@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "test:prices": "node --experimental-strip-types --test tests/price-selection.test.mjs",
+    "test:sources": "node --experimental-strip-types --test tests/source-search.test.mjs",
     "test:migrations": "node --experimental-strip-types --test tests/migrations.test.mjs",
     "dev": "export NODE_ENV=development && pnpm run build && pnpm run start",
     "build": "node ./build.mjs",

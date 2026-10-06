@@ -27,8 +27,10 @@ import type {
   CategoryNode,
   ChangePasswordBody,
   CreateCategoryBody,
+  CreateDataSourceBody,
   CreateItemBody,
   DashboardStats,
+  DataSource,
   ErrorResponse,
   ExportDataParams,
   ForgotPasswordBody,
@@ -44,9 +46,11 @@ import type {
   PriceSettings,
   RegisterBody,
   ResetPasswordBody,
+  SearchDataSourceBody,
   Shop,
   ShopInput,
   ShoppingListItem,
+  SourceSearchResult,
   TransferFileInput,
   TransferImportInput,
   TransferImportResult,
@@ -2847,4 +2851,294 @@ export const useDeleteShoppingListItem = <TError = ErrorType<ErrorResponse>,
         TContext
       > => {
       return useMutation(getDeleteShoppingListItemMutationOptions(options));
+    }
+
+export const getListDataSourcesUrl = () => {
+
+
+
+
+  return `/api/data-sources`
+}
+
+/**
+ * @summary List data collection sources for the current user
+ */
+export const listDataSources = async ( options?: RequestInit): Promise<DataSource[]> => {
+
+  return customFetch<DataSource[]>(getListDataSourcesUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListDataSourcesQueryKey = () => {
+    return [
+    `/api/data-sources`
+    ] as const;
+    }
+
+
+export const getListDataSourcesQueryOptions = <TData = Awaited<ReturnType<typeof listDataSources>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listDataSources>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListDataSourcesQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listDataSources>>> = ({ signal }) => listDataSources({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listDataSources>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListDataSourcesQueryResult = NonNullable<Awaited<ReturnType<typeof listDataSources>>>
+export type ListDataSourcesQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List data collection sources for the current user
+ */
+
+export function useListDataSources<TData = Awaited<ReturnType<typeof listDataSources>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listDataSources>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListDataSourcesQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateDataSourceUrl = () => {
+
+
+
+
+  return `/api/data-sources`
+}
+
+/**
+ * @summary Create a custom data collection source
+ */
+export const createDataSource = async (createDataSourceBody: CreateDataSourceBody, options?: RequestInit): Promise<DataSource> => {
+
+  return customFetch<DataSource>(getCreateDataSourceUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(createDataSourceBody)
+  }
+);}
+
+
+
+
+
+export const getCreateDataSourceMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createDataSource>>, TError,{data: BodyType<CreateDataSourceBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createDataSource>>, TError,{data: BodyType<CreateDataSourceBody>}, TContext> => {
+
+const mutationKey = ['createDataSource'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createDataSource>>, {data: BodyType<CreateDataSourceBody>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createDataSource(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateDataSourceMutationResult = NonNullable<Awaited<ReturnType<typeof createDataSource>>>
+    export type CreateDataSourceMutationBody = BodyType<CreateDataSourceBody>
+    export type CreateDataSourceMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Create a custom data collection source
+ */
+export const useCreateDataSource = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createDataSource>>, TError,{data: BodyType<CreateDataSourceBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createDataSource>>,
+        TError,
+        {data: BodyType<CreateDataSourceBody>},
+        TContext
+      > => {
+      return useMutation(getCreateDataSourceMutationOptions(options));
+    }
+
+export const getSearchDataSourcesUrl = () => {
+
+
+
+
+  return `/api/data-sources/search`
+}
+
+/**
+ * @summary Search a data source by SKU or barcode through the server proxy
+ */
+export const searchDataSources = async (searchDataSourceBody: SearchDataSourceBody, options?: RequestInit): Promise<SourceSearchResult> => {
+
+  return customFetch<SourceSearchResult>(getSearchDataSourcesUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(searchDataSourceBody)
+  }
+);}
+
+
+
+
+
+export const getSearchDataSourcesMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof searchDataSources>>, TError,{data: BodyType<SearchDataSourceBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof searchDataSources>>, TError,{data: BodyType<SearchDataSourceBody>}, TContext> => {
+
+const mutationKey = ['searchDataSources'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof searchDataSources>>, {data: BodyType<SearchDataSourceBody>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  searchDataSources(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SearchDataSourcesMutationResult = NonNullable<Awaited<ReturnType<typeof searchDataSources>>>
+    export type SearchDataSourcesMutationBody = BodyType<SearchDataSourceBody>
+    export type SearchDataSourcesMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Search a data source by SKU or barcode through the server proxy
+ */
+export const useSearchDataSources = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof searchDataSources>>, TError,{data: BodyType<SearchDataSourceBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof searchDataSources>>,
+        TError,
+        {data: BodyType<SearchDataSourceBody>},
+        TContext
+      > => {
+      return useMutation(getSearchDataSourcesMutationOptions(options));
+    }
+
+export const getDeleteDataSourceUrl = (id: number,) => {
+
+
+
+
+  return `/api/data-sources/${id}`
+}
+
+/**
+ * @summary Delete a data collection source
+ */
+export const deleteDataSource = async (id: number, options?: RequestInit): Promise<void> => {
+
+  return customFetch<void>(getDeleteDataSourceUrl(id),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getDeleteDataSourceMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteDataSource>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteDataSource>>, TError,{id: number}, TContext> => {
+
+const mutationKey = ['deleteDataSource'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteDataSource>>, {id: number}> = (props) => {
+          const {id} = props ?? {};
+
+          return  deleteDataSource(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteDataSourceMutationResult = NonNullable<Awaited<ReturnType<typeof deleteDataSource>>>
+
+    export type DeleteDataSourceMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Delete a data collection source
+ */
+export const useDeleteDataSource = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteDataSource>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteDataSource>>,
+        TError,
+        {id: number},
+        TContext
+      > => {
+      return useMutation(getDeleteDataSourceMutationOptions(options));
     }
