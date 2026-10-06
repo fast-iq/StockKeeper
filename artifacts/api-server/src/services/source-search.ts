@@ -545,6 +545,100 @@ function metaResults(html: string): SourceSearchResultItem[] {
   ];
 }
 
+function stripTags(value: string): string {
+  return decodeEntities(value.replace(/<[^>]*>/g, " "))
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function resolveHref(href: string, baseUrl?: string): string {
+  if (!baseUrl) return href;
+  try {
+    return new URL(href, baseUrl).toString();
+  } catch {
+    return href;
+  }
+}
+
+const ASSET_HREF = /\.(?:jpe?g|png|gif|svg|webp|css|js|ico|woff2?)$/i;
+
+function isStandaloneNumber(value: string): boolean {
+  const text = value.trim();
+  if (!text) return false;
+  let digits = 0;
+  let separators = 0;
+  for (const ch of text) {
+    if (ch >= "0" && ch <= "9") {
+      digits += 1;
+      continue;
+    }
+    if ((ch === "." || ch === ",") && separators === 0) {
+      separators += 1;
+      continue;
+    }
+    if (ch === " " && digits > 0) continue;
+    return false;
+  }
+  return digits > 0;
+}
+
+// Fallback for plain-HTML catalogue listings (no JSON-LD/og): finds table rows
+// that contain both a product link and a standalone numeric price cell after it.
+function htmlRowResults(
+  html: string,
+  baseUrl?: string,
+): SourceSearchResultItem[] {
+  const results: SourceSearchResultItem[] = [];
+  const rowPattern = /<tr[^>]*>([\s\S]*?)<\/tr>/gi;
+  let row: RegExpExecArray | null;
+  while ((row = rowPattern.exec(html)) !== null) {
+    if (results.length >= MAX_RESULTS * 3) break;
+    const cells: string[] = [];
+    const cellPattern = /<td[^>]*>([\s\S]*?)<\/td>/gi;
+    let cell: RegExpExecArray | null;
+    while ((cell = cellPattern.exec(row[1])) !== null) cells.push(cell[1]);
+    if (cells.length < 2) continue;
+
+    let anchorIndex = -1;
+    let title = "";
+    let href = "";
+    for (let i = 0; i < cells.length; i += 1) {
+      const anchor = /<a\s[^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/i.exec(
+        cells[i],
+      );
+      if (!anchor) continue;
+      const text = stripTags(anchor[2]);
+      if (text.length < 4 || text.length > 300) continue;
+      anchorIndex = i;
+      title = text;
+      href = anchor[1].trim();
+      break;
+    }
+    if (anchorIndex < 0) continue;
+    if (/^(?:#|javascript:|mailto:|data:)/i.test(href)) continue;
+    if (ASSET_HREF.test(href)) continue;
+
+    let price: number | null = null;
+    for (let i = anchorIndex + 1; i < cells.length; i += 1) {
+      const text = stripTags(cells[i]);
+      if (!isStandaloneNumber(text)) continue;
+      const parsed = parsePrice(text);
+      if (parsed !== null) {
+        price = parsed;
+        break;
+      }
+    }
+    if (price === null) continue;
+    results.push({
+      title,
+      price,
+      url: resolveHref(href, baseUrl),
+      imageUrl: null,
+    });
+  }
+  return results;
+}
+
 function dedupe(results: SourceSearchResultItem[]): SourceSearchResultItem[] {
   const seen = new Set<string>();
   const out: SourceSearchResultItem[] = [];
@@ -561,6 +655,7 @@ function dedupe(results: SourceSearchResultItem[]): SourceSearchResultItem[] {
 export function extractResults(
   contentType: string,
   body: string,
+  baseUrl?: string,
 ): SourceSearchResultItem[] {
   const trimmed = body.trim();
   const looksJson =
@@ -576,6 +671,8 @@ export function extractResults(
   }
   const results = jsonLdResults(body);
   if (results.length > 0) return dedupe(results);
+  const rows = htmlRowResults(body, baseUrl);
+  if (rows.length > 0) return dedupe(rows);
   return dedupe(metaResults(body));
 }
 
@@ -611,7 +708,13 @@ export async function searchDataSource(
 
   try {
     const response = await fetchValidated(startUrl, fetchFn, lookupFn);
-    return { results: extractResults(response.contentType, response.body) };
+    return {
+      results: extractResults(
+        response.contentType,
+        response.body,
+        startUrl.toString(),
+      ),
+    };
   } catch (error) {
     if (error instanceof SourceSearchError) {
       if (

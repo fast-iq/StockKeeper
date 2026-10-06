@@ -32,6 +32,10 @@ const BUILTIN_SOURCES: ReadonlyArray<{ name: string; urlTemplate: string }> = [
     name: "Яндекс.Маркет",
     urlTemplate: "https://market.yandex.ru/search?text={sku}",
   },
+  {
+    name: "Крепика (krepika.ru)",
+    urlTemplate: "https://krepika.ru/search/?query={sku}",
+  },
 ];
 
 function isUniqueViolation(error: unknown): boolean {

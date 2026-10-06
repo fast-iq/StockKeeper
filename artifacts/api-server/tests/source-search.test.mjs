@@ -241,6 +241,58 @@ test("falls back to Open Graph metadata when no JSON-LD is present", () => {
   assert.equal(results[0].imageUrl, "https://img.test/d.jpg");
 });
 
+test("falls back to plain HTML table listings with prices", () => {
+  const html = `
+    <html><body>
+    <table class="b-tbl-items">
+      <tr><td align="center">Код</td><td align="center">Наименование</td>
+          <td align="center">Цена***</td></tr>
+      <tr class="t1">
+        <td align="right">8918</td>
+        <td><a href="/catalog/itempage/8918/" style="text-decoration: none;"> 6,5*18 анкер с конич. болтом</a></td>
+        <td align="right">5.98</td>
+        <td class="tara-">шт</td>
+        <td class="tara-">0.005</td>
+      </tr>
+      <tr class="t1">
+        <td align="right">8919</td>
+        <td><a href="/catalog/itempage/8919/">Гайка М8 оцинк. DIN 934</a></td>
+        <td align="right">1 234,56</td>
+      </tr>
+      <tr class="t1">
+        <td><a href="/catalog/itempage/9999/">Товар без цены</a></td>
+        <td>&nbsp;</td>
+      </tr>
+      <tr><td><a href="/about/">О компании</a></td><td>текст без числа</td></tr>
+    </table>
+    </body></html>`;
+  const results = extractResults(
+    "text/html; charset=utf-8",
+    html,
+    "https://krepika.ru/search/?query=x",
+  );
+  assert.equal(results.length, 2);
+  assert.equal(results[0].title, "6,5*18 анкер с конич. болтом");
+  assert.equal(results[0].price, 5.98);
+  assert.equal(results[0].url, "https://krepika.ru/catalog/itempage/8918/");
+  assert.equal(results[1].title, "Гайка М8 оцинк. DIN 934");
+  assert.equal(results[1].price, 1234.56);
+
+  const relative = extractResults("text/html", html);
+  assert.equal(relative[0].url, "/catalog/itempage/8918/");
+});
+
+test("HTML table rows never override JSON-LD results", () => {
+  const html = `
+    <script type="application/ld+json">
+    {"@type":"Product","name":"Пылесос","offers":{"price":"12990","url":"https://shop.test/p"}}
+    </script>
+    <table><tr><td><a href="/x/1/">Стол</a></td><td>999</td></tr></table>`;
+  const results = extractResults("text/html", html, "https://shop.test/");
+  assert.equal(results.length, 1);
+  assert.equal(results[0].title, "Пылесос");
+});
+
 test("malformed JSON without HTML structure yields no results", () => {
   assert.deepEqual(extractResults("application/json", "{broken"), []);
   assert.deepEqual(

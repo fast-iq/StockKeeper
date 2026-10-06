@@ -172,16 +172,29 @@ PATH и `Set-Location`, но запускать как `corepack pnpm …` дл�
   `pnpm --filter @workspace/api-spec codegen` обновил `lib/api-client-react` (хуки
   `useListDataSources`/`useCreateDataSource`/`useDeleteDataSource`/`useSearchDataSources`)
   и `lib/api-zod`.
+- **HTML-фоллбэк экстракции (06.10.2026)**: если в ответе нет JSON/JSON-LD/og,
+  `extractResults` разбирает таблицы-листинги: строка `<tr>` с якорем в `<td>`
+  (текст 4–300 символов, не asset/`javascript:`/`mailto:`) + **первая
+  standalone-числовая ячейка после якоря** = цена; ссылки резолвятся от
+  `baseUrl` (передаётся `startUrl` из `searchDataSource`). Число проверяется
+  char-scan'ом `isStandaloneNumber` (не regex — гейт `detect-unsafe-regex`).
+  Порядок: JSON → JSON-LD → HTML-строки → og-meta. Юнит-функция покрыта
+  тестами, на реальной выдаче krepika.ru даёт 10 товаров с ценами.
+- **Встроенный источник «Крепика (krepika.ru)»** (`https://krepika.ru/search/?query={sku}` —
+  параметр поиска именно `query`, не `q`; `?q=` молча игнорируется). Сидируется
+  только при ПУСТОМ списке; у существующих аккаунтов добавить вручную (UI
+  «Управление источниками» или разовый INSERT в `data_sources`).
 - **UI**: `components/SourceSearch.tsx` в правой колонке `item-detail.tsx` — префилл запроса из
   `sku || barcode`, количество (для «итого за N шт»), список источников, «Найти», результаты с
   «Взять цену» (PATCH `price` + инвалидация кэшей) и ссылкой на страницу, управление своими
   источниками (добавить/удалить с подтверждением); ru/en ключи `sources.*` в `locales/*.json`.
-- **Тесты**: `tests/source-search.test.mjs` (16 шт., injectable fetch/DNS, без сети: шаблоны,
-  SSRF-блоки, редиректы, лимиты, экстракция JSON/JSON-LD/og, orchestration) + скрипт
+- **Тесты**: `tests/source-search.test.mjs` (18 шт., injectable fetch/DNS, без сети: шаблоны,
+  SSRF-блоки, редиректы, лимиты, экстракция JSON/JSON-LD/HTML-таблицы/og, orchestration) + скрипт
   `test:sources`, включённый в корневой `pnpm test`. Обновлён `migrations.integration.test.mjs`
   (12/16/4/journal=2) — локальный прогон требует PostgreSQL с ролью `transfer_test`
   (Docker/WSL сейчас недоступны, см. §6 — прогнать в CI или после восстановления Docker).
-- **Проверки**: format:check, lint (0/0), typecheck, test (57 pass + 1 skip), build,
+- **Проверки**: format:check, lint (0/0), typecheck, test (весь корневой прогон, включая
+  18 sources-тестов), build,
   `git diff --check`, `drizzle-kit generate` — успешно. Audit: устранены 4 новых advisory
   (см. §3.1), остаётся известный `braces` (high, без патча).
 
@@ -1025,7 +1038,7 @@ M lib/api-zod/src/generated/\_ # zod-схемы + types/{createDataSourceBody,da
 A artifacts/api-server/src/services/source-search.ts # SSRF-гард + шаблоны + fetch + экстрактор
 A artifacts/api-server/src/routes/data-sources.ts # CRUD + search-прокси (rate-limit 30/мин)
 M artifacts/api-server/src/routes/index.ts # + dataSourcesRouter
-A artifacts/api-server/tests/source-search.test.mjs # 16 юнит-тестов (injectable fetch/DNS)
+A artifacts/api-server/tests/source-search.test.mjs # 18 юнит-тестов (injectable fetch/DNS)
 M artifacts/api-server/package.json # + test:sources
 M package.json # test-цепочка + test:sources
 M artifacts/api-server/tests/migrations.integration.test.mjs # 12/16/4/journal=2 + data_sources в легаси
