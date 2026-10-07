@@ -140,8 +140,35 @@ PATH и `Set-Location`, но запускать как `corepack pnpm …` дл�
     rate-limit 30/мин на аккаунт. Шаблоны — только с `{sku}`/`{barcode}`
     (`validateTemplateSyntax` до записи в БД). TOCTOU между DNS-проверкой и connect принят
     и документирован — guard не упрощать и не отключать ради «работы» внутренних адресов.
+24. **Service worker (`artifacts/inventory-app/public/sw.js`) не кэширует `/api/*`** — все
+    персональные данные идут только по сети; `fetch`-handler возвращает `undefined` для не-GET,
+    чужих origin и путей `/api/`. Стратегия остального: навигация и не-`/assets/*` — network-first
+    (свежий `index.html`, фикс «залипшей» версии после деплоя), `/assets/*` — cache-first
+    (хешированные файлы). Регистрация SW — только в PROD (`import.meta.env.PROD` в `main.tsx`).
+    Кэш переживает обновление: версия в имени (`stockkeeper-<VERSION>`), старые версии удаляются
+    на `activate`; при изменении `sw.js` поднимать `VERSION`.
 
 ## 3. Изменения (проблема → фикс → файлы)
+
+### PWA — установка сайта на телефон (07.10.2026)
+
+- `artifacts/inventory-app/public/manifest.webmanifest`: standalone, **относительные**
+  `start_url`/`scope`/`icons` (резолвятся от URL манифеста → работают и при корне, и при
+  `BASE_PATH`); `background_color`/`theme_color` = `#1a222e` (дефолтная тема `:root`).
+- Иконки `public/icons/` (`icon-192.png`, `icon-512.png`, `icon-maskable-512.png`,
+  `apple-touch-icon.png`) — сгенерированы одноразово из `favicon.svg` через headless Edge
+  (скрипт во `%TEMP%`, в репо только PNG). Обновление иконок = перегенерация тем же способом.
+- `public/sw.js` (см. инвариант 24): network-first навигация + не-`/assets/*`, cache-first
+  `/assets/*`, `/api/*` не кэшируется; `skipWaiting` + `clients.claim`, чистка старых кэшей.
+  Файл статичный в `public/` (не бандлится Vite) — правки напрямую.
+- `index.html`: `<link rel="manifest">`, `apple-touch-icon`, `theme-color`,
+  `mobile-web-app-capable`. `src/main.tsx`: регистрация `${BASE_URL}sw.js` только в PROD.
+- `deploy/docker/Caddyfile`: `Cache-Control: immutable` для `/assets/*`, `no-cache` для всего
+  остального, кроме `/api/*` (у API свой `no-store` — не затирать, инвариант 16).
+- `eslint.config.mjs`: для `**/public/sw.js` добавлены `globals.serviceworker` (иначе
+  `no-undef` на `self`/`caches`/`clients`).
+- Проверки: manifest/sw отдаются, SW регистрируется в собранном бандле, `/api` мимо кэша —
+  подтверждается после деплоя headless-прогоном и установкой на телефон.
 
 ### Источники сбора данных (06.10.2026)
 

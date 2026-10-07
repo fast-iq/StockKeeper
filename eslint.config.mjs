@@ -44,6 +44,12 @@ export default tseslint.config(
     },
   },
   {
+    files: ["**/public/sw.js"],
+    languageOptions: {
+      globals: { ...globals.serviceworker },
+    },
+  },
+  {
     files: [
       "**/*.mjs",
       "artifacts/mockup-sandbox/mockupPreviewPlugin.ts",
