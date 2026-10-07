@@ -158,17 +158,25 @@ PATH и `Set-Location`, но запускать как `corepack pnpm …` дл�
 - Иконки `public/icons/` (`icon-192.png`, `icon-512.png`, `icon-maskable-512.png`,
   `apple-touch-icon.png`) — сгенерированы одноразово из `favicon.svg` через headless Edge
   (скрипт во `%TEMP%`, в репо только PNG). Обновление иконок = перегенерация тем же способом.
-- `public/sw.js` (см. инвариант 24): network-first навигация + не-`/assets/*`, cache-first
-  `/assets/*`, `/api/*` не кэшируется; `skipWaiting` + `clients.claim`, чистка старых кэшей.
-  Файл статичный в `public/` (не бандлится Vite) — правки напрямую.
+- `public/sw.js` (см. инвариант 24): на `install` precache оболочки (корень scope),
+  network-first навигация + не-`/assets/*`, cache-first `/assets/*` (fallback
+  `Response.error()` при обрыве сети), `/api/*` не кэшируется; `skipWaiting` +
+  `clients.claim`, чистка старых кэшей. Файл статичный в `public/` (не бандлится Vite)
+  — правки напрямую.
 - `index.html`: `<link rel="manifest">`, `apple-touch-icon`, `theme-color`,
   `mobile-web-app-capable`. `src/main.tsx`: регистрация `${BASE_URL}sw.js` только в PROD.
 - `deploy/docker/Caddyfile`: `Cache-Control: immutable` для `/assets/*`, `no-cache` для всего
   остального, кроме `/api/*` (у API свой `no-store` — не затирать, инвариант 16).
+  Синтаксис проверен на VPS отдельным `caddy:2-alpine` (`caddy validate`) до перезапуска
+  контейнеров.
 - `eslint.config.mjs`: для `**/public/sw.js` добавлены `globals.serviceworker` (иначе
   `no-undef` на `self`/`caches`/`clients`).
-- Проверки: manifest/sw отдаются, SW регистрируется в собранном бандле, `/api` мимо кэша —
-  подтверждается после деплоя headless-прогоном и установкой на телефон.
+- Закоммичено в `2413f74`, CI docker-publish success, задеплоено `server-update.sh`.
+  Headless-проверка прода PASS: manifest/иконки/apple-touch 200 (`application/manifest+json`),
+  `sw.js` и index — `no-cache`, `/assets/*` — `immutable`, `/api/healthz` — `no-store`
+  (инвариант 16 не затёрт), SW контролирует страницу, кэш `stockkeeper-v1` без единой
+  записи `/api`, **оффлайн-перезагрузка отдаёт живое приложение**. Установка на телефон —
+  через Chrome «Установить приложение» (проверяется пользователем).
 
 ### Источники сбора данных (06.10.2026)
 
