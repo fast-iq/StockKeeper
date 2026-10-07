@@ -190,11 +190,19 @@ PATH и `Set-Location`, но запускать как `corepack pnpm …` дл�
   источниками (добавить/удалить с подтверждением); ru/en ключи `sources.*` в `locales/*.json`.
 - **Страница создания** (`pages/item-new.tsx`, 06.10.2026): секция `<SourceSearch mode="new">`
   первой карточкой **вне `<form>`** (внутри формы вложенная `<form>` управления источниками —
-  invalid HTML). Колбэк `onApply` заполняет поля новой карточки: `name` (title), `price`
-  (price, если не null), `photoUrl` (imageUrl, если есть) — кнопка результата «Заполнить карточку»
-  (без условия `price != null`, в отличие от detail-режима). Поля формы `name`/`price`/`description`
-  переведены в controlled state (иначе программная запись не видна submit'у через `FormData`);
-  `itemId` в компоненте опционален, PATCH-ветка — только detail-режим.
+  invalid HTML). Колбэк `onApply(r, {query, quantity})` заполняет поля новой карточки: `name`
+  (title), `price` (price, если не null), `photoUrl` (imageUrl, если есть), `sku` (текст запроса
+  поиска), `notes` (url результата — только если заметки пусты или последняя запись была
+  автозаполнена; ручное редактирование снимает флаг `notesAuto`), `quantity` (количество из
+  секции источников, если >0) — кнопка результата «Заполнить карточку» (без условия
+  `price != null`, в отличие от detail-режима). Поля формы `name`/`price`/`description`/`sku`/
+  `quantity`/`notes` переведены в controlled state (иначе программная запись не видна submit'у
+  через `FormData`); `itemId` в компоненте опционален, PATCH-ветка — только detail-режим.
+- **Количество — только целое** (`items.quantity` integer в БД): `POST`/`PATCH /items` проверяют
+  `quantityError()` (integer, 0…2147483647) → 400 вместо 500 от PG (поймано на проде: дробное
+  23.97 валилось в integer-колонку); на форме `step="1"` + клиентская проверка с тостом
+  `itemNew.quantityNotInteger`. Та же правило уже есть в transfer-validation (импорт) — не дублировать
+  по-другому.
 - **Тесты**: `tests/source-search.test.mjs` (18 шт., injectable fetch/DNS, без сети: шаблоны,
   SSRF-блоки, редиректы, лимиты, экстракция JSON/JSON-LD/HTML-таблицы/og, orchestration) + скрипт
   `test:sources`, включённый в корневой `pnpm test`. Обновлён `migrations.integration.test.mjs`

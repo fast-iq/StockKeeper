@@ -50,7 +50,10 @@ export function SourceSearch({
 }: {
   itemId?: number;
   mode?: "detail" | "new";
-  onApply?: (r: SourceSearchResultItem) => void;
+  onApply?: (
+    r: SourceSearchResultItem,
+    meta: { query: string; quantity: number },
+  ) => void;
   initialQuery: string;
   initialQuantity: number;
 }) {
@@ -124,10 +127,13 @@ export function SourceSearch({
     setTimeout(() => setApplied(false), 2500);
   };
 
+  const parsedQty = Number(qty);
+  const quantity = Number.isFinite(parsedQty) && parsedQty >= 0 ? parsedQty : 0;
+
   const applyResult = (r: SourceSearchResultItem) => {
     if (mode === "new") {
       if (!onApply) return;
-      onApply(r);
+      onApply(r, { query: query.trim(), quantity });
       toastApplied();
       return;
     }
@@ -174,9 +180,6 @@ export function SourceSearch({
       setActionError(errText(err, t("sources.deleteFailed")));
     }
   };
-
-  const parsedQty = Number(qty);
-  const quantity = Number.isFinite(parsedQty) && parsedQty >= 0 ? parsedQty : 0;
 
   const sourceErrorMessage = sourceError
     ? SOURCE_ERROR_CODES.includes(sourceError)

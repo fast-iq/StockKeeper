@@ -111,6 +111,10 @@ function NewItemForm({
     copySource?.legacyPrice?.toString() ?? "",
   );
   const [descVal, setDescVal] = useState(copySource?.description ?? "");
+  const [skuVal, setSkuVal] = useState(copySource?.sku ?? "");
+  const [qtyVal, setQtyVal] = useState(copySource?.quantity?.toString() ?? "0");
+  const [notesVal, setNotesVal] = useState(copySource?.notes ?? "");
+  const [notesAuto, setNotesAuto] = useState(false);
 
   const { data: categories } = useListCategories({
     query: { queryKey: getListCategoriesQueryKey() },
@@ -146,12 +150,26 @@ function NewItemForm({
     const unitIdVal = formData.get("unitId");
     const locationIdVal = formData.get("locationId");
 
+    const quantityNum = Number(formData.get("quantity"));
+    if (
+      !Number.isInteger(quantityNum) ||
+      quantityNum < 0 ||
+      quantityNum > 2147483647
+    ) {
+      toast({
+        title: t("itemNew.initialQuantity"),
+        description: t("itemNew.quantityNotInteger"),
+        variant: "destructive",
+      });
+      return;
+    }
+
     const data = {
       ...(copyId ? { copySourceId: copyId } : {}),
       name: formData.get("name") as string,
       description: (formData.get("description") as string) || null,
       photoUrl: (formData.get("photoUrl") as string) || null,
-      quantity: Number(formData.get("quantity")) || 0,
+      quantity: quantityNum,
       price: parsedPrice.value,
       unitId: unitIdVal && unitIdVal !== "none" ? Number(unitIdVal) : null,
       locationId:
@@ -193,10 +211,19 @@ function NewItemForm({
     );
   };
 
-  const applyFromSource = (r: SourceSearchResultItem) => {
+  const applyFromSource = (
+    r: SourceSearchResultItem,
+    meta: { query: string; quantity: number },
+  ) => {
     setNameVal(r.title);
     if (r.price != null) setPriceVal(String(r.price));
     if (r.imageUrl) setPhotoPreview(r.imageUrl);
+    if (meta.query) setSkuVal(meta.query);
+    if (r.url && (!notesVal.trim() || notesAuto)) {
+      setNotesVal(r.url);
+      setNotesAuto(true);
+    }
+    if (meta.quantity > 0) setQtyVal(String(meta.quantity));
   };
 
   return (
@@ -258,7 +285,8 @@ function NewItemForm({
                 <Input
                   id="sku"
                   name="sku"
-                  defaultValue={copySource?.sku ?? ""}
+                  value={skuVal}
+                  onChange={(e) => setSkuVal(e.target.value)}
                   placeholder={t("itemNew.skuPlaceholder")}
                   className="font-mono bg-background text-sm uppercase"
                 />
@@ -321,10 +349,12 @@ function NewItemForm({
                   name="quantity"
                   type="number"
                   min="0"
-                  step="0.01"
-                  defaultValue={copySource?.quantity?.toString() ?? "0"}
+                  step="1"
+                  value={qtyVal}
+                  onChange={(e) => setQtyVal(e.target.value)}
                   required
                   className="font-mono text-lg bg-background"
+                  data-testid="input-quantity"
                 />
               </div>
               <div className="space-y-2">
@@ -449,7 +479,11 @@ function NewItemForm({
                 <Textarea
                   id="notes"
                   name="notes"
-                  defaultValue={copySource?.notes ?? ""}
+                  value={notesVal}
+                  onChange={(e) => {
+                    setNotesVal(e.target.value);
+                    setNotesAuto(false);
+                  }}
                   placeholder={t("itemNew.notesPlaceholder")}
                   className="min-h-[100px] bg-background"
                 />

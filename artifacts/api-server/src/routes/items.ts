@@ -111,6 +111,14 @@ async function validateItemRefs(
   return null;
 }
 
+function quantityError(n: number | null | undefined): string | null {
+  if (n == null) return null;
+  if (!Number.isInteger(n) || n < 0 || n > 2147483647) {
+    return "Quantity must be a whole non-negative number up to 2147483647.";
+  }
+  return null;
+}
+
 function serializeItem(item: {
   id: number;
   name: string;
@@ -270,6 +278,12 @@ router.post("/items", requireAuth, async (req, res): Promise<void> => {
     res
       .status(400)
       .json({ error: "Price must have at most two decimal places." });
+    return;
+  }
+
+  const qtyError = quantityError(parsed.data.quantity);
+  if (qtyError) {
+    res.status(400).json({ error: qtyError });
     return;
   }
 
@@ -441,6 +455,12 @@ router.patch("/items/:id", requireAuth, async (req, res): Promise<void> => {
     res
       .status(400)
       .json({ error: "Price must have at most two decimal places." });
+    return;
+  }
+
+  const qtyError = quantityError(parsed.data.quantity);
+  if (qtyError) {
+    res.status(400).json({ error: qtyError });
     return;
   }
 
