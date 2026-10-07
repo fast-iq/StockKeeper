@@ -157,7 +157,7 @@ SMTP_FROM` в env-файле и выполнить `up -d`.
 | Caddy: «hostname does not resolve»    | `APP_DOMAIN` должен резолвиться; `<IP>.sslip.io` — резолвится сам; голый IP в `APP_DOMAIN` нельзя (нет TLS и Google-origin) |
 | Контейнер API `unhealthy` дольше 60 с | `… logs api` — смотреть ошибку подключения к БД/миграций                                                                    |
 | `forgot-password` → 503               | SMTP не настроен — ожидаемо; заполнить `SMTP_*` в env и `up -d`                                                             |
-| CI: Security Audit красный            | Известная `braces` (GHSA-vfj7-8cjw-p6xm) через mockup-sandbox, фикса нет — деплою не мешает                                 |
+| CI: Security Audit красный            | Новый advisory → разобрать в AGENTS §3.1; известная `braces` устранена 07.10.2026 (fast-glob → tinyglobby)                  |
 | Сменился IP сервера                   | sslip-домен изменится → обновить `APP_DOMAIN` в env → `up -d --force-recreate` → новый origin в Google Cloud Console        |
 | Google-вход не работает               | Origin в Google Console должен точно совпадать: `https://<APP_DOMAIN>` (проверить раскладку/слэш)                           |
 | Хочу свой домен                       | Направить A-запись на сервер → `APP_DOMAIN` в env → `up -d --force-recreate` → новый origin в Google                        |

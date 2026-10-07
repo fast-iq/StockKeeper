@@ -815,8 +815,20 @@ PATH и `Set-Location`, но запускать как `corepack pnpm …` дл�
 | fast-copy GHSA-jggr-w7fw-pc2j (pino-pretty)              | moderate | `fast-copy@>=4.0.0 <4.1.0: ">=4.1.0"`                                                           |
 | postcss-selector-parser GHSA-rj75-hqrm-r3gf (typography) | moderate | `postcss-selector-parser@<7.1.6: ">=7.1.6"` (major 6→7; проверено полной сборкой inventory-app) |
 
-Остаётся `braces <=3.0.3` (GHSA-vfj7-8cjw-p6xm, patched `<0.0.0`, mockup-sandbox → fast-glob) —
-CI `security-audit` красный, как и раньше; не отключать и не выдавать за чистый аудит.
+**07.10.2026 — устранён `braces <=3.0.3` (GHSA-vfj7-8cjw-p6xm, CVE-2026-93687)**: у advisory
+`Patched versions: None` (проверено по GitHub Advisory и npm 07.10; последняя версия на npm —
+3.0.3 от 21.05.2024) → **override невозможен**. Цепочка
+`mockup-sandbox → fast-glob → micromatch → braces` устранена заменой единственного прямого
+потребителя: `fast-glob` → `tinyglobby@^0.2.17` (`artifacts/mockup-sandbox/package.json`),
+зависимости `fdir`/`picomatch` — без braces; версия от 30.05.2026 проходит
+`minimumReleaseAge`. В `mockupPreviewPlugin.ts` — `import { glob } from "tinyglobby"`,
+тот же вызов `glob(pattern, { cwd, ignore })`; поведение проверено на Windows (build с
+тестовым mockup-файлом даёт корректные posix-ключи и импорты в
+`src/.generated/mockup-components.ts`, пустой каталог — пустая карта, как и fast-glob).
+`micromatch` из lockfile ушёл полностью; `pnpm audit --audit-level=high` →
+**No known vulnerabilities found (exit 0)** — CI `security-audit` зелёный.
+`fast-glob` возвращать не нужно; если появится новый advisory — фикс через replacement/override
+здесь же.
 
 ### 3.2 Код API (`artifacts/api-server/src/…`)
 
