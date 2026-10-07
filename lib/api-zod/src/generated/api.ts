@@ -1073,6 +1073,20 @@ export const SearchDataSourcesResponse = zod.object({
 
 
 /**
+ * @summary Fetch an item photo through the SSRF-guarded image proxy
+ */
+export const getSourcePhotoQueryUrlMax = 2000;
+
+
+
+export const GetSourcePhotoQueryParams = zod.object({
+  "url": zod.string().url().min(1).max(getSourcePhotoQueryUrlMax).describe('Absolute http(s) URL of the upstream image')
+})
+
+export const GetSourcePhotoResponse = zod.unknown()
+
+
+/**
  * @summary Delete a data collection source
  */
 export const DeleteDataSourceParams = zod.object({

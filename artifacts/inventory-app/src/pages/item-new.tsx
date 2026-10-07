@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/select";
 import { TagInput } from "@/components/ui/tag-input";
 import { SourceSearch } from "@/components/SourceSearch";
+import { usePhotoPreview } from "@/components/ItemThumb";
 import { Package, ArrowLeft, Save, Loader2, Image, Copy } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useQueryClient } from "@tanstack/react-query";
@@ -106,6 +107,7 @@ function NewItemForm({
   const [photoPreview, setPhotoPreview] = useState<string>(
     copySource?.photoUrl ?? "",
   );
+  const previewSrc = usePhotoPreview(photoPreview);
   const [nameVal, setNameVal] = useState(copySource?.name ?? "");
   const [priceVal, setPriceVal] = useState(
     copySource?.legacyPrice?.toString() ?? "",
@@ -453,10 +455,10 @@ function NewItemForm({
                   value={photoPreview}
                   onChange={(e) => setPhotoPreview(e.target.value)}
                 />
-                {photoPreview && (
+                {previewSrc ? (
                   <div className="mt-2 rounded-lg overflow-hidden border border-border bg-muted w-40 h-28 flex items-center justify-center">
                     <img
-                      src={photoPreview}
+                      src={previewSrc}
                       alt="preview"
                       className="object-contain w-full h-full"
                       onError={(e) => {
@@ -464,8 +466,7 @@ function NewItemForm({
                       }}
                     />
                   </div>
-                )}
-                {!photoPreview && (
+                ) : (
                   <div className="mt-1 rounded-lg border border-dashed border-border bg-muted/30 w-40 h-28 flex flex-col items-center justify-center text-muted-foreground gap-1">
                     <Image className="w-6 h-6 opacity-30" />
                     <span className="text-xs opacity-40">

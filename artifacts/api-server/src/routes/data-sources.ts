@@ -10,6 +10,7 @@ import { requireAuth } from "../middlewares/auth";
 import { rateLimit } from "../middlewares/rate-limit";
 import {
   searchDataSource,
+  fetchImage,
   validateTemplateSyntax,
   SourceSearchError,
 } from "../services/source-search";
@@ -147,6 +148,50 @@ router.post(
     } catch (error) {
       if (error instanceof SourceSearchError) {
         res.status(400).json({ error: error.message });
+        return;
+      }
+      throw error;
+    }
+  },
+);
+
+// Image proxy for item photos: upstream catalogues hotlink-protect their
+// images, so browsers must not fetch photoUrl directly. SSRF guard and size
+// limits come from fetchImage; the response inherits the global no-store.
+router.get(
+  "/data-sources/photo",
+  requireAuth,
+  rateLimit({
+    name: "source-photo",
+    windowMs: 60_000,
+    max: 300,
+    key: (req) => String(req.session.userId ?? req.ip ?? "unknown"),
+  }),
+  async (req, res) => {
+    const raw = typeof req.query.url === "string" ? req.query.url : "";
+    if (!raw || raw.length > 2000) {
+      res.status(400).json({ error: "url query parameter is required" });
+      return;
+    }
+    try {
+      const { contentType, body } = await fetchImage(raw);
+      res.setHeader("Content-Type", contentType);
+      res.status(200).end(Buffer.from(body));
+    } catch (error) {
+      if (error instanceof SourceSearchError) {
+        if (
+          error.code === "blocked" ||
+          error.code === "invalid-url" ||
+          error.code === "bad-template"
+        ) {
+          res.status(400).json({ error: error.message });
+          return;
+        }
+        if (error.code === "bad-format") {
+          res.status(415).json({ error: error.message });
+          return;
+        }
+        res.status(502).json({ error: error.message });
         return;
       }
       throw error;

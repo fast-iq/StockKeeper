@@ -22,6 +22,7 @@ export * from './exportDataFormat';
 export * from './exportDataParams';
 export * from './forgotPasswordBody';
 export * from './getRecentItemsParams';
+export * from './getSourcePhotoParams';
 export * from './googleLoginBody';
 export * from './healthStatus';
 export * from './item';

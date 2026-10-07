@@ -5,6 +5,7 @@ import {
   validateTemplateSyntax,
   assertPublicHttpUrl,
   fetchValidated,
+  fetchImage,
   extractResults,
   parsePrice,
   searchDataSource,
@@ -282,6 +283,57 @@ test("falls back to plain HTML table listings with prices", () => {
   assert.equal(relative[0].url, "/catalog/itempage/8918/");
 });
 
+test("HTML listing rows pick up product photos from rel links and photo cells", () => {
+  const html = `
+    <table>
+      <tr class="t1">
+        <td align="right">11571</td>
+        <td><a href="/catalog/itempage/11571/" style="text-decoration: none;">М6 гайка самоконтр., ГОСТ DIN934</a></td>
+        <td align="right">16.97</td>
+        <td class="photo-"><a href="/catalog/item/11571/" class="itemFoto" rel="/img_catalog/1717.jpg" id="tid-11571"><img src="/images/foto.gif" alt="" /></a></td>
+      </tr>
+      <tr class="t1">
+        <td><a href="/catalog/itempage/11572/">Шайба плоская</a></td>
+        <td align="right">2.50</td>
+        <td class="photo-"><img src="/img/i/1/149/149-105x70.jpg" alt="" /></td>
+      </tr>
+      <tr class="t1">
+        <td><a href="/catalog/itempage/11573/">Болт без фото</a></td>
+        <td align="right">3.00</td>
+        <td class="photo-"><a href="/x/" rel="nofollow"><img src="/images/foto.gif" alt="" /></a></td>
+      </tr>
+      <tr class="t1">
+        <td><a href="/catalog/itempage/11574/">Странный товар</a></td>
+        <td align="right">4.00</td>
+        <td class="photo-"><img src="javascript:alert(1)" alt="" /></td>
+      </tr>
+    </table>`;
+  const results = extractResults(
+    "text/html",
+    html,
+    "https://krepika.ru/search/?query=x",
+  );
+  assert.equal(results.length, 4);
+  assert.equal(
+    results[0].imageUrl,
+    "https://krepika.ru/img_catalog/1717.jpg",
+    "rel link photo wins over placeholder gif",
+  );
+  assert.equal(
+    results[1].imageUrl,
+    "https://krepika.ru/img/i/1/149/149-105x70.jpg",
+  );
+  assert.equal(results[2].imageUrl, null, "gif placeholder is not a photo");
+  assert.equal(results[3].imageUrl, null, "non-http image sources rejected");
+
+  const noBase = extractResults("text/html", html);
+  assert.equal(
+    noBase[0].imageUrl,
+    null,
+    "relative photo without a base URL stays unresolved",
+  );
+});
+
 test("HTML table rows never override JSON-LD results", () => {
   const html = `
     <script type="application/ld+json">
@@ -385,6 +437,110 @@ test("too many redirects and error statuses map to stable codes", async () => {
     async () =>
       fetchValidated(new URL("https://example.com/a"), slow, publicLookup),
     "timeout",
+  );
+});
+
+test("fetchImage sends the image origin as Referer and returns bytes", async () => {
+  let seen;
+  const imgFetch = async (url, init) => {
+    seen = { url: url.toString(), headers: init.headers };
+    return new Response(new Uint8Array([1, 2, 3]), {
+      status: 200,
+      headers: { "content-type": "image/jpeg" },
+    });
+  };
+  const res = await fetchImage(
+    "https://cdn.test/pics/a.jpg",
+    imgFetch,
+    publicLookup,
+  );
+  assert.equal(res.contentType, "image/jpeg");
+  assert.deepEqual([...res.body], [1, 2, 3]);
+  assert.equal(seen.headers.Referer, "https://cdn.test/");
+  assert.match(seen.headers["User-Agent"], /StockKeeper/);
+});
+
+test("fetchImage blocks private targets and rejects non-image bodies", async () => {
+  await expectCode(
+    async () =>
+      fetchImage(
+        "http://192.168.1.10/photo.jpg",
+        async () => new Response(),
+        publicLookup,
+      ),
+    "blocked",
+  );
+  await expectCode(
+    async () =>
+      fetchImage(
+        "file:///etc/passwd",
+        async () => new Response(),
+        publicLookup,
+      ),
+    "blocked",
+  );
+  const htmlFetch = async () =>
+    new Response("<html>login required</html>", {
+      status: 200,
+      headers: { "content-type": "text/html; charset=utf-8" },
+    });
+  await expectCode(
+    async () => fetchImage("https://cdn.test/p", htmlFetch, publicLookup),
+    "bad-format",
+  );
+});
+
+test("fetchImage revalidates redirects and enforces size and status limits", async () => {
+  const hops = [];
+  const redirectFetch = async (url, init) => {
+    hops.push({ url: url.toString(), referer: init.headers.Referer });
+    if (hops.length === 1) {
+      return new Response(null, {
+        status: 302,
+        headers: { location: "https://www.cdn.test/p.jpg" },
+      });
+    }
+    return new Response("img", {
+      status: 200,
+      headers: { "content-type": "image/png" },
+    });
+  };
+  const res = await fetchImage(
+    "https://cdn.test/p.jpg",
+    redirectFetch,
+    publicLookup,
+  );
+  assert.equal(res.contentType, "image/png");
+  assert.equal(hops.length, 2);
+  assert.equal(hops[1].referer, "https://www.cdn.test/");
+
+  const evilFetch = async () =>
+    new Response(null, {
+      status: 302,
+      headers: { location: "http://10.9.9.9/steal.jpg" },
+    });
+  await expectCode(
+    async () => fetchImage("https://cdn.test/y.jpg", evilFetch, publicLookup),
+    "blocked",
+  );
+
+  const bigFetch = async () =>
+    new Response("x", {
+      status: 200,
+      headers: {
+        "content-type": "image/jpeg",
+        "content-length": String(50 * 1024 * 1024),
+      },
+    });
+  await expectCode(
+    async () => fetchImage("https://cdn.test/big.jpg", bigFetch, publicLookup),
+    "too-large",
+  );
+
+  const denied = async () => new Response("no", { status: 403 });
+  await expectCode(
+    async () => fetchImage("https://cdn.test/x.jpg", denied, publicLookup),
+    "network",
   );
 });
 

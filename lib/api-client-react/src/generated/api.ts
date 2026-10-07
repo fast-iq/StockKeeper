@@ -35,6 +35,7 @@ import type {
   ExportDataParams,
   ForgotPasswordBody,
   GetRecentItemsParams,
+  GetSourcePhotoParams,
   GoogleLoginBody,
   HealthStatus,
   Item,
@@ -3071,6 +3072,90 @@ export const useSearchDataSources = <TError = ErrorType<ErrorResponse>,
       > => {
       return useMutation(getSearchDataSourcesMutationOptions(options));
     }
+
+export const getGetSourcePhotoUrl = (params: GetSourcePhotoParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/data-sources/photo?${stringifiedParams}` : `/api/data-sources/photo`
+}
+
+/**
+ * @summary Fetch an item photo through the SSRF-guarded image proxy
+ */
+export const getSourcePhoto = async (params: GetSourcePhotoParams, options?: RequestInit): Promise<Blob> => {
+
+  return customFetch<Blob>(getGetSourcePhotoUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetSourcePhotoQueryKey = (params?: GetSourcePhotoParams,) => {
+    return [
+    `/api/data-sources/photo`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetSourcePhotoQueryOptions = <TData = Awaited<ReturnType<typeof getSourcePhoto>>, TError = ErrorType<ErrorResponse>>(params: GetSourcePhotoParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getSourcePhoto>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetSourcePhotoQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getSourcePhoto>>> = ({ signal }) => getSourcePhoto(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getSourcePhoto>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetSourcePhotoQueryResult = NonNullable<Awaited<ReturnType<typeof getSourcePhoto>>>
+export type GetSourcePhotoQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary Fetch an item photo through the SSRF-guarded image proxy
+ */
+
+export function useGetSourcePhoto<TData = Awaited<ReturnType<typeof getSourcePhoto>>, TError = ErrorType<ErrorResponse>>(
+ params: GetSourcePhotoParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getSourcePhoto>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetSourcePhotoQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getDeleteDataSourceUrl = (id: number,) => {
 

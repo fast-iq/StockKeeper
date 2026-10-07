@@ -326,6 +326,107 @@ export async function fetchValidated(
   throw new SourceSearchError("redirect-loop", "Too many redirects");
 }
 
+async function readLimitedBytes(
+  res: Response,
+  maxBytes: number,
+): Promise<Uint8Array> {
+  const declared = Number(res.headers.get("content-length") ?? "0");
+  if (Number.isFinite(declared) && declared > maxBytes) {
+    throw new SourceSearchError("too-large", "Response is too large");
+  }
+  if (!res.body) return new Uint8Array();
+  const reader = res.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let received = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    received += value.byteLength;
+    if (received > maxBytes) {
+      await reader.cancel().catch(() => undefined);
+      throw new SourceSearchError("too-large", "Response is too large");
+    }
+    chunks.push(value);
+  }
+  const out = new Uint8Array(received);
+  let offset = 0;
+  for (const chunk of chunks) {
+    out.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return out;
+}
+
+// Guarded image download for the photo proxy: same SSRF rules as search,
+// Referer set to the image's own origin because catalogues hotlink-protect
+// their product photos (krepika.ru answers 403 for any foreign Referer).
+export async function fetchImage(
+  rawUrl: string,
+  fetchFn: typeof fetch = fetch,
+  lookupFn: LookupFn = defaultLookup,
+): Promise<{ contentType: string; body: Uint8Array }> {
+  let current = await assertPublicHttpUrl(rawUrl, lookupFn);
+  for (let hop = 0; hop < MAX_HOPS; hop += 1) {
+    let res: Response;
+    try {
+      res = await fetchFn(current, {
+        redirect: "manual",
+        signal: timeoutSignal(),
+        headers: {
+          "User-Agent": USER_AGENT,
+          Accept: "image/avif,image/webp,image/apng,image/*,*/*;q=0.8",
+          Referer: `${current.origin}/`,
+        },
+      });
+    } catch (error) {
+      if (error instanceof SourceSearchError) throw error;
+      const name = error instanceof Error ? error.name : "";
+      if (name === "TimeoutError" || name === "AbortError") {
+        throw new SourceSearchError("timeout", "Request timed out");
+      }
+      throw new SourceSearchError("network", "Network request failed");
+    }
+
+    if (isRedirect(res.status)) {
+      const location = res.headers.get("location");
+      if (!location) {
+        throw new SourceSearchError(
+          "network",
+          "Redirect without Location header",
+        );
+      }
+      let next: URL;
+      try {
+        next = new URL(location, current);
+      } catch {
+        throw new SourceSearchError("network", "Invalid redirect target");
+      }
+      current = await assertPublicHttpUrl(next.toString(), lookupFn);
+      continue;
+    }
+
+    if (!res.ok) {
+      throw new SourceSearchError(
+        "network",
+        `Upstream responded with HTTP ${res.status}`,
+      );
+    }
+
+    const contentType = (res.headers.get("content-type") ?? "").trim();
+    if (!/^image\//i.test(contentType.split(";")[0]!.trim())) {
+      await res.body?.cancel().catch(() => undefined);
+      throw new SourceSearchError(
+        "bad-format",
+        "URL does not point to an image",
+      );
+    }
+
+    const body = await readLimitedBytes(res, MAX_BYTES);
+    return { contentType, body };
+  }
+  throw new SourceSearchError("redirect-loop", "Too many redirects");
+}
+
 // ---------------------------------------------------------------- parsing
 
 export function parsePrice(value: unknown): number | null {
@@ -562,6 +663,42 @@ function resolveHref(href: string, baseUrl?: string): string {
 
 const ASSET_HREF = /\.(?:jpe?g|png|gif|svg|webp|css|js|ico|woff2?)$/i;
 
+function httpImage(value: string, baseUrl?: string): string | null {
+  const resolved = resolveHref(value, baseUrl);
+  if (!/^https?:\/\//i.test(resolved)) return null;
+  let pathname: string;
+  try {
+    pathname = new URL(resolved).pathname;
+  } catch {
+    return null;
+  }
+  // Placeholders and icons (gif/svg) are skipped on purpose: a wrong photo is
+  // worse than none, and catalogues that ship real photos use raster formats.
+  return /\.(?:jpe?g|png|webp|avif)$/i.test(pathname) ? resolved : null;
+}
+
+// Product photo from a plain-HTML listing row: catalogues either keep the real
+// photo URL in an anchor's rel (hover zoom, e.g. krepika itemFoto) or put an
+// <img> into a cell whose class mentions photo/foto/image/thumb.
+function rowImage(rowHtml: string, baseUrl?: string): string | null {
+  const relPattern = /<a\s[^>]*rel="([^"]*)"[^>]*>/gi;
+  let rel: RegExpExecArray | null;
+  while ((rel = relPattern.exec(rowHtml)) !== null) {
+    const found = httpImage(decodeEntities(rel[1]).trim(), baseUrl);
+    if (found) return found;
+  }
+  const cellPattern =
+    /<td[^>]*class="[^"]*(?:photo|foto|image|thumb)[^"]*"[^>]*>([\s\S]*?)<\/td>/gi;
+  let cell: RegExpExecArray | null;
+  while ((cell = cellPattern.exec(rowHtml)) !== null) {
+    const img = /<img[^>]+src="([^"]+)"/i.exec(cell[1]);
+    if (!img) continue;
+    const found = httpImage(decodeEntities(img[1]).trim(), baseUrl);
+    if (found) return found;
+  }
+  return null;
+}
+
 function isStandaloneNumber(value: string): boolean {
   const text = value.trim();
   if (!text) return false;
@@ -633,7 +770,7 @@ function htmlRowResults(
       title,
       price,
       url: resolveHref(href, baseUrl),
-      imageUrl: null,
+      imageUrl: rowImage(row[1], baseUrl),
     });
   }
   return results;

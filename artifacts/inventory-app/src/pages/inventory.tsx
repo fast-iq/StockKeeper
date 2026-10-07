@@ -12,6 +12,7 @@ import {
 } from "@workspace/api-client-react";
 import { Input } from "@/components/ui/input";
 import { BarcodeScanButton } from "@/components/BarcodeScanButton";
+import { ItemThumb } from "@/components/ItemThumb";
 import { Button } from "@/components/ui/button";
 import {
   Search,
@@ -534,17 +535,8 @@ function ItemRow({ item }: { item: Item }) {
   return (
     <tr className="hover:bg-muted/30 group transition-colors">
       <td className="px-4 py-3">
-        <div className="flex items-center gap-2">
-          {item.photoUrl && (
-            <img
-              src={item.photoUrl}
-              alt={item.name}
-              className="w-7 h-7 rounded object-contain bg-muted border border-border shrink-0"
-              onError={(e) => {
-                (e.target as HTMLImageElement).style.display = "none";
-              }}
-            />
-          )}
+        <div className="flex items-center gap-2.5">
+          <ItemThumb src={item.photoUrl} alt={item.name} className="h-9 w-9" />
           <div>
             <Link
               href={`/items/${item.id}`}
@@ -681,20 +673,12 @@ function MobileItemCard({ item }: { item: Item }) {
   return (
     <article className="rounded-xl border border-border bg-card p-4 shadow-sm">
       <div className="flex items-start gap-3">
-        {item.photoUrl ? (
-          <img
-            src={item.photoUrl}
-            alt={item.name}
-            className="h-12 w-12 shrink-0 rounded-lg border border-border bg-muted object-contain"
-            onError={(e) => {
-              (e.target as HTMLImageElement).style.display = "none";
-            }}
-          />
-        ) : (
-          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg border border-border bg-muted text-muted-foreground">
-            <Package className="h-5 w-5" />
-          </div>
-        )}
+        <ItemThumb
+          src={item.photoUrl}
+          alt={item.name}
+          className="h-12 w-12 rounded-lg"
+          iconClassName="h-5 w-5"
+        />
         <div className="min-w-0 flex-1">
           <Link
             href={`/items/${item.id}`}

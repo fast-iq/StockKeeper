@@ -25,10 +25,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ItemPrices } from "@/components/ItemPrices";
+import { ItemThumb, usePhotoPreview } from "@/components/ItemThumb";
 import { SourceSearch } from "@/components/SourceSearch";
 import { TagInput } from "@/components/ui/tag-input";
 import {
-  Package,
   ArrowLeft,
   Loader2,
   Minus,
@@ -125,6 +125,7 @@ export default function ItemDetailPage() {
 
   const [quantity, setQuantity] = useState<number>(0);
   const [photoPreview, setPhotoPreview] = useState<string>("");
+  const previewSrc = usePhotoPreview(photoPreview);
   const initRef = useRef(false);
 
   useEffect(() => {
@@ -261,20 +262,11 @@ export default function ItemDetailPage() {
                 </Button>
               </Link>
               <div className="flex items-center gap-3">
-                {item.photoUrl ? (
-                  <img
-                    src={item.photoUrl}
-                    alt={item.name}
-                    className="w-9 h-9 rounded-md object-contain bg-muted border border-border"
-                    onError={(e) => {
-                      (e.target as HTMLImageElement).style.display = "none";
-                    }}
-                  />
-                ) : (
-                  <div className="w-9 h-9 rounded-md bg-muted border border-border flex items-center justify-center">
-                    <Package className="w-4 h-4 text-muted-foreground" />
-                  </div>
-                )}
+                <ItemThumb
+                  src={item.photoUrl}
+                  alt={item.name}
+                  className="h-9 w-9"
+                />
                 <div className="flex flex-col">
                   <h1 className="font-bold tracking-tight text-lg flex items-center gap-2 truncate max-w-md">
                     {item.name}
@@ -543,9 +535,9 @@ export default function ItemDetailPage() {
                     </h2>
                     <div className="flex gap-4 items-start">
                       <div className="shrink-0 w-28 h-28 rounded-lg overflow-hidden border border-border bg-muted flex items-center justify-center">
-                        {photoPreview ? (
+                        {previewSrc ? (
                           <img
-                            src={photoPreview}
+                            src={previewSrc}
                             alt="preview"
                             className="object-contain w-full h-full"
                             onError={(e) => {

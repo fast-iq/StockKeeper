@@ -544,3 +544,12 @@ includeSubcategories?: boolean;
 export type GetRecentItemsParams = {
 limit?: number;
 };
+
+export type GetSourcePhotoParams = {
+/**
+ * Absolute http(s) URL of the upstream image
+ * @minLength 1
+ * @maxLength 2000
+ */
+url: string;
+};
