@@ -19,7 +19,9 @@
     "cameraBusy": "The camera is unavailable or busy in another app. Close that app and try again.",
     "httpsRequired": "Camera access requires a secure HTTPS connection. Enter the barcode manually.",
     "unsupported": "This browser does not support camera access. Use another browser or enter the barcode manually.",
-    "failed": "The camera could not start or was disconnected. Retry or enter the barcode manually."
+    "failed": "The camera could not start or was disconnected. Retry or enter the barcode manually.",
+    "installing": "Installing the barcode scanning module…",
+    "nativeUnavailable": "The native scanner is unavailable: Google Play services are missing or the scanning module failed to install. Enter the barcode manually."
   },
   "nav": {
     "overview": "Overview",

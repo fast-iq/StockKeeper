@@ -187,12 +187,49 @@ PATH и `Set-Location`, но запускать как `corepack pnpm …` дл�
   под все плотности) и `drawable*/splash.png` (фон `#1a222e` + центрированный квадрат);
   `values/ic_launcher_background.xml` `#FFFFFF` → `#1a222e`. Генератор — одноразовый
   PowerShell-скрипт на System.Drawing (в репо не хранится).
-- **Ограничения APK (проверить на устройстве)**: Android WebView **не поддерживает
-  getUserMedia** → камерное сканирование штрихкодов в APK не работает (ручной ввод — работает;
-  PWA в Chrome — работает; нативный сканер — отдельная будущая задача). Google-вход в WebView
+- **Ограничения APK (проверить на устройстве)**: сканирование штрихкодов работает через
+  **нативный сканер** (см. подраздел ниже) — WebView-getUserMedia в APK не используется; на
+  устройствах без Google Play Services сканер недоступен (ручной ввод работает, PWA в Chrome —
+  работает). Google-вход в WebView
   может блокироваться политиками GIS embedded-webview — проверить; парольный вход гарантирован.
   APK требует интернет; offline — как у PWA. Смена домена = правка дефолта `APP_URL` в
   `capacitor.config.ts` (или env в CI); `versionCode 1`/`versionName "1.0"` бампить при релизе.
+
+### Нативный сканер штрихкодов в APK (08.10.2026)
+
+- **Решение пользователя**: нативное распознавание на устройстве предпочтительнее любой
+  доставки кадров на сервер; для APK это обходит ограничение WebView `getUserMedia`.
+- `@capacitor-mlkit/barcode-scanning@8.2.1` — **точная** версия в devDependencies inventory-app
+  (peer `@capacitor/core >=8`; вышла 10.09 → проходит `minimumReleaseAge`). Audit-high остаётся 0
+  (прежний moderate `uuid` — цепочка `@capacitor/cli > xcode`, не из этого пакета).
+- `src/lib/barcode-native.ts` — `scanNatively(onInstalling?, isDismissed?)`:
+  `isSupported()` (нет камеры → ключ `barcodeScanner.noCamera`) → `ensureModule()`:
+  `isGoogleBarcodeScannerModuleAvailable()` → при необходимости `installGoogleBarcodeScannerModule()`
+  (resolve = установлено либо «already installed» → ок; таймаут 120 с → `nativeUnavailable`;
+  проценты — событие `googleBarcodeScannerModuleInstallProgress`) → `BarcodeScanner.scan()` —
+  **готовый нативный Activity-UI без camera-пермиссии** (камеру держит модуль Google).
+  Отмена пользователем = reject `"scan canceled."` → `ScanCanceledError` (тихо, без ошибки);
+  прочие reject → `NativeScanError` с существующим ключом `barcodeScanner.*` (маппинг по
+  подстрокам Java-констант плагина). Значение: первый непустой `rawValue ?? displayValue`.
+- `BarcodeScanButton.tsx`: ветвление по `Capacitor.getPlatform() === "android"`. Нативный модуль
+  грузится **ленивым `await import("@/lib/barcode-native")`** — чанк не попадает в критический
+  путь PWA (при отказе загрузки — `barcodeScanner.failed` с retry). В Android Dialog открывается
+  только для установки модуля (прогресс %) и для ошибки (retry/manual); при успехе/отмене —
+  закрыт. Браузерная ZXing-ветка (`CameraSession`) не изменена. Кнопка disabled + спиннер, пока
+  идёт нативный `scan()` (Activity перекрывает WebView). Закрытие диалога во время установки не
+  отменяет её (фон), но `isDismissed` не даёт открыть `scan()` после — модуль пригодится со
+  следующего клика.
+- i18n: +2 ключа `barcodeScanner.installing` / `barcodeScanner.nativeUnavailable` (ru/en).
+- `cap sync` обновил tracked `android/capacitor.settings.gradle` и `android/app/capacitor.build.gradle`
+  (include `:capacitor-mlkit-barcode-scanning`; путь с pnpm-хешем воспроизводим из lockfile, CI
+  делает свой `cap sync` после `pnpm install`). Без `cap sync` после добавления плагина gradle
+  его не увидит.
+- **Устройство без Google Play Services** → модуль не установится → ошибка `nativeUnavailable`
+  - ручной ввод. Локальной gradle-проверки нет (Java нет) — нативная ветка проверяется на
+    устройстве; APK пересобирается CI (`android.yml`, paths `artifacts/inventory-app/**` покрывают
+    и новый dep, и lockfile).
+- Проверки: format:check, lint (0/0), typecheck, test, build, audit-high (0), `git diff --check`,
+  `cap sync` — успешно.
 
 ### PWA — установка сайта на телефон (07.10.2026)
 
@@ -1223,7 +1260,8 @@ M AGENTS.md # инвариант 23, §3 (фича), §3.1 (audit 06.10), §5, �
   перегенерацию без причины.
 - **APK (Фаза 2, §3)**: берётся из Actions → workflow «Android APK» → artifact
   `stockkeeper-debug-apk` (не из релизов; релизы настраиваются позже). Подпись debug-стабильная
-  (`stockkeeper-debug.p12` в репо) — обновления ставятся поверх без удаления. WebView APK не
-  умеет камеру (`getUserMedia`) — сканер штрихкодов доступен только в PWA под Chrome; Google-вход
+  (`stockkeeper-debug.p12` в репо) — обновления ставятся поверх без удаления. Сканирование
+  штрихкодов — нативный ML Kit-сканер (нужны Google Play Services, иначе ручной ввод);
+  WebView `getUserMedia` в APK не используется. Google-вход
   в WebView непроверен (парольный — проверен). Gradle/Java локально нет — сборка только в CI;
   `cap sync` локально возможен.

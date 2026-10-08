@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { IScannerControls } from "@zxing/browser";
+import { Capacitor } from "@capacitor/core";
 import { Camera, Loader2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
@@ -9,9 +10,10 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import { cameraErrorKey } from "@/lib/barcode-camera";
+
+const nativeAndroid = Capacitor.getPlatform() === "android";
 
 export function BarcodeScanButton({
   onScan,
@@ -20,35 +22,144 @@ export function BarcodeScanButton({
 }) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
+  const [phase, setPhase] = useState<"idle" | "installing">("idle");
+  const [nativeError, setNativeError] = useState<string | null>(null);
+  const [installProgress, setInstallProgress] = useState<number | null>(null);
+  const dismissedRef = useRef(false);
+  const busy = phase !== "idle";
+
+  const runNative = useCallback(async () => {
+    let native: typeof import("@/lib/barcode-native");
+    try {
+      native = await import("@/lib/barcode-native");
+    } catch {
+      setNativeError("barcodeScanner.failed");
+      setOpen(true);
+      return;
+    }
+    dismissedRef.current = false;
+    setNativeError(null);
+    setInstallProgress(null);
+    setPhase("installing");
+    try {
+      const value = await native.scanNatively(
+        setInstallProgress,
+        () => dismissedRef.current,
+      );
+      setPhase("idle");
+      setOpen(false);
+      onScan(value);
+    } catch (cause) {
+      setPhase("idle");
+      if (cause instanceof native.ScanCanceledError) {
+        setOpen(false);
+        return;
+      }
+      if (dismissedRef.current) return;
+      setNativeError(
+        cause instanceof native.NativeScanError
+          ? cause.key
+          : "barcodeScanner.failed",
+      );
+      setOpen(true);
+    }
+  }, [onScan]);
+
+  const handleOpenChange = (next: boolean) => {
+    if (!next) dismissedRef.current = true;
+    setOpen(next);
+  };
+
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button
-          type="button"
-          variant="outline"
-          size="icon"
-          className="h-11 w-11 shrink-0"
-          title={t("barcodeScanner.scan")}
-          aria-label={t("barcodeScanner.scan")}
-        >
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <Button
+        type="button"
+        variant="outline"
+        size="icon"
+        className="h-11 w-11 shrink-0"
+        title={t("barcodeScanner.scan")}
+        aria-label={t("barcodeScanner.scan")}
+        disabled={busy}
+        onClick={() => {
+          if (nativeAndroid) void runNative();
+          else setOpen(true);
+        }}
+      >
+        {busy ? (
+          <Loader2 className="h-5 w-5 animate-spin" />
+        ) : (
           <Camera className="h-5 w-5" />
-        </Button>
-      </DialogTrigger>
+        )}
+      </Button>
       <DialogContent className="w-[calc(100%_-_2rem)] max-h-[90dvh] overflow-y-auto rounded-xl p-4 sm:p-6">
         <DialogHeader className="pr-6">
           <DialogTitle>{t("barcodeScanner.title")}</DialogTitle>
           <DialogDescription>{t("barcodeScanner.hint")}</DialogDescription>
         </DialogHeader>
-        <CameraSession
-          active={open}
-          onScan={(value) => {
-            setOpen(false);
-            onScan(value);
-          }}
-          onClose={() => setOpen(false)}
-        />
+        {nativeAndroid ? (
+          <NativeSession
+            phase={phase}
+            error={nativeError}
+            progress={installProgress}
+            onRetry={() => void runNative()}
+            onClose={() => setOpen(false)}
+          />
+        ) : (
+          <CameraSession
+            active={open}
+            onScan={(value) => {
+              setOpen(false);
+              onScan(value);
+            }}
+            onClose={() => setOpen(false)}
+          />
+        )}
       </DialogContent>
     </Dialog>
+  );
+}
+
+function NativeSession({
+  phase,
+  error,
+  progress,
+  onRetry,
+  onClose,
+}: {
+  phase: "idle" | "installing";
+  error: string | null;
+  progress: number | null;
+  onRetry: () => void;
+  onClose: () => void;
+}) {
+  const { t } = useTranslation();
+  return (
+    <div className="space-y-3">
+      {!error && phase === "installing" && (
+        <p role="status" className="text-sm text-muted-foreground">
+          {t("barcodeScanner.installing")}
+          {progress != null ? ` ${progress}%` : ""}
+        </p>
+      )}
+      {error && (
+        <p role="alert" className="text-sm text-destructive">
+          {t(error)}
+        </p>
+      )}
+      <p className="text-xs text-muted-foreground">
+        {t("barcodeScanner.privacy")}
+      </p>
+      <div className="flex flex-wrap gap-2">
+        {error && (
+          <Button type="button" onClick={onRetry}>
+            {t("barcodeScanner.retry")}
+          </Button>
+        )}
+        <Button type="button" variant="outline" onClick={onClose}>
+          {t("barcodeScanner.manual")}
+        </Button>
+      </div>
+    </div>
   );
 }
 
