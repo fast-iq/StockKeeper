@@ -1,0 +1,66 @@
+name: Android APK
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "artifacts/inventory-app/**"
+      - "pnpm-lock.yaml"
+      - ".github/workflows/android.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-apk:
+    name: Build debug APK
+    runs-on: ubuntu-24.04
+    if: github.repository_owner == 'fast-iq'
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4.4.0
+        with:
+          run_install: false
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+          check-latest: true
+          cache: "pnpm"
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build web app
+        run: pnpm --filter @workspace/inventory-app run build
+
+      - name: Sync Capacitor
+        run: pnpm --filter @workspace/inventory-app exec cap sync android
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: "temurin"
+          java-version: "21"
+          cache: "gradle"
+
+      - name: Make gradlew executable
+        run: chmod +x artifacts/inventory-app/android/gradlew
+
+      - name: Build debug APK
+        working-directory: artifacts/inventory-app/android
+        run: ./gradlew assembleDebug --no-daemon
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: stockkeeper-debug-apk
+          path: artifacts/inventory-app/android/app/build/outputs/apk/debug/app-debug.apk
+          retention-days: 90

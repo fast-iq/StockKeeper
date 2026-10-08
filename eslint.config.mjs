@@ -16,6 +16,8 @@ export default tseslint.config(
       "**/coverage/**",
       "scripts/tsx/**",
       "*.config.js",
+      // Capacitor native project (Java/Gradle) + its generated web assets
+      "artifacts/inventory-app/android/**",
     ],
   },
   js.configs.recommended,

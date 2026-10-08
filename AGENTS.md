@@ -153,6 +153,47 @@ PATH и `Set-Location`, но запускать как `corepack pnpm …` дл�
 
 ## 3. Изменения (проблема → фикс → файлы)
 
+### Фаза 2: APK через Capacitor (07.10.2026)
+
+- **Решение пользователя**: debug-подпись, сборка APK в GitHub Actions (Java локально нет),
+  всё в `main`. `@capacitor/core|cli|android@8.5.2` — **точная** версия в devDependencies
+  inventory-app (8.5.3 вышла <24 ч назад → отсекается `minimumReleaseAge: 1440`; при
+  обновлении брать версию старше суток).
+- **`capacitor.config.ts` — режим `server.url`** (WebView открывает реальный сайт, дефолт
+  `https://157-228-160-86.sslip.io`, переопределяется env `APP_URL`): это **единственно
+  возможный** режим при `sameSite: "lax"` (инвариант 11) — bundled-режим (`capacitor://`
+  origin) делал бы запросы cross-site, и session-cookie не ушла бы на API. В bundle копируются
+  ассеты (нужны только для `webDir`), `androidScheme: "https"`, `backgroundColor: "#1a222e"`.
+- **Android-проект** `artifacts/inventory-app/android/` — коммитится целиком; его собственный
+  `.gitignore` уже исключает `app/src/main/assets/public`, `capacitor.config.json`,
+  `capacitor.plugins.json` (генерируются `cap sync`); в `.prettierignore` добавлен весь
+  каталог `android` (Java/Gradle/XML). `cap sync` прогнан локально (без Java — только copy).
+- **Подпись — стабильный debug keystore**: `android/app/stockkeeper-debug.p12`
+  (самоподписаный openssl, пароль `android`, alias `stockkeeper`) + `signingConfigs.debug`
+  в `android/app/build.gradle`. Без этого gradle генерит свежий `~/.android/debug.keystore`
+  на каждом CI-ране → разные подписи → Android откажется ставить APK поверх старого.
+  Debug-ключ не является секретом; release-подпись — отдельная задача с секретом пользователя.
+- **CI**: `.github/workflows/android.yml` — push в `main` (paths: `artifacts/inventory-app/**`,
+  `pnpm-lock.yaml`, workflow) + `workflow_dispatch`; guard `github.repository_owner == 'fast-iq'`;
+  пины как в `ci.yml` (checkout@v6, pnpm/action-setup@v4.4.0, setup-node@v6, ubuntu-24.04);
+  Java temurin 21 + gradle-cache; `chmod +x gradlew` **обязателен** (в git файл ложится
+  `100644` — Windows core.filemode=false); `./gradlew assembleDebug --no-daemon`;
+  артефакт `stockkeeper-debug-apk` (90 дней) → Actions → workflow «Android APK» → Artifacts.
+  Gradle-сборка локально невозможна (нет Java) — проверяется только в CI.
+- **Иконки — исправлен существующий баг PWA**: PNG генерировались из `favicon.svg` (180×180)
+  **без масштабирования на канвас** — оранжевый квадрат сидел в левом верхнем углу 512-px
+  файла. Перегенерированы `public/icons/*` (192/512 — rx=20%, `icon-maskable`/`apple-touch` —
+  full-bleed без прозрачности), Android `mipmap-*` (ic_launcher/ic_launcher_round/ic_launcher_foreground
+  под все плотности) и `drawable*/splash.png` (фон `#1a222e` + центрированный квадрат);
+  `values/ic_launcher_background.xml` `#FFFFFF` → `#1a222e`. Генератор — одноразовый
+  PowerShell-скрипт на System.Drawing (в репо не хранится).
+- **Ограничения APK (проверить на устройстве)**: Android WebView **не поддерживает
+  getUserMedia** → камерное сканирование штрихкодов в APK не работает (ручной ввод — работает;
+  PWA в Chrome — работает; нативный сканер — отдельная будущая задача). Google-вход в WebView
+  может блокироваться политиками GIS embedded-webview — проверить; парольный вход гарантирован.
+  APK требует интернет; offline — как у PWA. Смена домена = правка дефолта `APP_URL` в
+  `capacitor.config.ts` (или env в CI); `versionCode 1`/`versionName "1.0"` бампить при релизе.
+
 ### PWA — установка сайта на телефон (07.10.2026)
 
 - `artifacts/inventory-app/public/manifest.webmanifest`: standalone, **относительные**
@@ -1180,3 +1221,9 @@ M AGENTS.md # инвариант 23, §3 (фича), §3.1 (audit 06.10), §5, �
   перегенерируется при каждом `vite build` mockup-sandbox (и становится «грязным» в git status).
   Исключён из prettier (`.prettierignore`); при чистке diff'а — `git restore`, не коммитить локальную
   перегенерацию без причины.
+- **APK (Фаза 2, §3)**: берётся из Actions → workflow «Android APK» → artifact
+  `stockkeeper-debug-apk` (не из релизов; релизы настраиваются позже). Подпись debug-стабильная
+  (`stockkeeper-debug.p12` в репо) — обновления ставятся поверх без удаления. WebView APK не
+  умеет камеру (`getUserMedia`) — сканер штрихкодов доступен только в PWA под Chrome; Google-вход
+  в WebView непроверен (парольный — проверен). Gradle/Java локально нет — сборка только в CI;
+  `cap sync` локально возможен.

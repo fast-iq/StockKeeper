@@ -22,3 +22,6 @@ results.sarif
 report_html.html
 report_json.json
 report_md.md
+
+# Capacitor Android project (Java/Gradle/XML + generated assets)
+artifacts/inventory-app/android

@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">StockKeeper</string>
+    <string name="title_activity_main">StockKeeper</string>
+    <string name="package_name">io.fastiq.stockkeeper</string>
+    <string name="custom_url_scheme">io.fastiq.stockkeeper</string>
+</resources>
