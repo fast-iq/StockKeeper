@@ -160,7 +160,7 @@ PATH и `Set-Location`, но запускать как `corepack pnpm …` дл�
   inventory-app (8.5.3 вышла <24 ч назад → отсекается `minimumReleaseAge: 1440`; при
   обновлении брать версию старше суток).
 - **`capacitor.config.ts` — режим `server.url`** (WebView открывает реальный сайт, дефолт
-  `https://157-228-160-86.sslip.io`, переопределяется env `APP_URL`): это **единственно
+  `https://157-228-151-236.sslip.io`, переопределяется env `APP_URL`): это **единственно
   возможный** режим при `sameSite: "lax"` (инвариант 11) — bundled-режим (`capacitor://`
   origin) делал бы запросы cross-site, и session-cookie не ушла бы на API. В bundle копируются
   ассеты (нужны только для `webDir`), `androidScheme: "https"`, `backgroundColor: "#1a222e"`.
@@ -779,7 +779,8 @@ PATH и `Set-Location`, но запускать как `corepack pnpm …` дл�
 
 ### Развёртывание на VPS (04.10.2026, выполняется пошагово)
 
-- Сервер: Debian 13, **157.228.160.86** (хост менялся: vm4190214 → vm4717441), диск ~8.8 ГБ —
+- Сервер: Debian 13, **157.228.151.236** (IP сменился 12.11.2026, прежний 157.228.160.86 больше
+  не наш; хост менялся: vm4190214 → vm4717441), диск ~8.8 ГБ —
   образы на хосте НЕ собирать (ENOSPC), только pull из GHCR; пакеты
   `fast-iq/stockkeeper-api|web` публичны (без docker login). Репо клонирован в `/opt/stockkeeper`;
   функция обвязки: `dc() { docker compose --env-file /etc/stockkeeper/stockkeeper.env -f /opt/stockkeeper/deploy/docker/compose.yaml "$@"; }`
@@ -788,8 +789,8 @@ PATH и `Set-Location`, но запускать как `corepack pnpm …` дл�
   pg_hba `172.16.0.0/12 scram-sha-256`; порт **5432 закрыт от интернета** (проверено снаружи).
 - **ufw active** (deny incoming): `22/tcp`, `80/tcp`, `443` (tcp+udp — нужен для HTTP/3),
   `5432/tcp ← 172.16.0.0/12` (docker→PG), VPN `1628/51628/51821`.
-- `/etc/stockkeeper/stockkeeper.env` (root, 600): `APP_DOMAIN=157-228-160-86.sslip.io`
-  (вариант A; переезд на домен = правка строки + пересоздание контейнеров + новый origin в
+- `/etc/stockkeeper/stockkeeper.env` (root, 600): `APP_DOMAIN=157-228-151-236.sslip.io`
+  (вариант A sslip.io; переезд на домен = правка строки + `dc up -d` + новый origin в
   Google Cloud Console), `GOOGLE_CLIENT_ID` = Actions-переменная `VITE_GOOGLE_CLIENT_ID`
   (зашивается в web-образ при сборке — после смены ID нужен rebuild), `SESSION_SECRET`,
   `EXTERNAL_DB_URL=postgresql://stockkeeper:<pw>@host.docker.internal:5432/stockkeeper`
@@ -839,6 +840,16 @@ PATH и `Set-Location`, но запускать как `corepack pnpm …` дл�
 - Google origin `https://157-228-160-86.sslip.io` добавлен в Google Cloud
   Console пользователем 06.10.2026. SMTP отложен решением пользователя
   (`forgot-password` остаётся 503).
+- **Смена IP на 157.228.151.236 (12.11.2026)**: тот же VPS (vm4717441), БД/секреты/бэкапы
+  не тронуты. Выполнено: `APP_DOMAIN=157-228-151-236.sslip.io` в env + `dc up -d` →
+  Caddy сам выпустил сертификат для нового хоста (порт 80 открыт, проверено снаружи);
+  `curl https://157-228-151-236.sslip.io/api/healthz` = 200, `/login` = 200. Дефолт
+  `APP_URL` в `capacitor.config.ts` изменён → CI пересобрал APK (та же debug-подпись,
+  ставится поверх). Старый адрес 157.228.160.86 — не наш (таймаут), старый PWA-ярлык
+  и прежний APK неработоспособны. Зона ответственности пользователя: добавить origin
+  `https://157-228-151-236.sslip.io` в Google Cloud Console (старый удалить), заново
+  войти (cookie домен-связаны), переустановить ярлык PWA / APK, перевыпустить
+  конфиги WireGuard (endpoint в awg-easy).
 
 ### Проверка перед синхронизацией GitHub (03.10.2026)
 

@@ -1,6 +1,6 @@
 import type { CapacitorConfig } from "@capacitor/cli";
 
-const serverUrl = process.env.APP_URL ?? "https://157-228-160-86.sslip.io";
+const serverUrl = process.env.APP_URL ?? "https://157-228-151-236.sslip.io";
 
 const config: CapacitorConfig = {
   appId: "io.fastiq.stockkeeper",
