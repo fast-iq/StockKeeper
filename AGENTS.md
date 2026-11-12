@@ -919,6 +919,31 @@ PATH и `Set-Location`, но запускать как `corepack pnpm …` дл�
 `fast-glob` возвращать не нужно; если появится новый advisory — фикс через replacement/override
 здесь же.
 
+**12.11.2026 — волна новых advisory (CI Security Audit упал без изменений кода)**: реестр
+обновился — high `zod <4.6.6` (GHSA-mrhx-c7xc-m3w5), high `body-parser 2.x<2.4.0`
+(GHSA-27r3-jxmh-p828, через express), high `markdown-it 14.1.0–14.3.2` (typedoc/orval), high+moderate
+`vite ≤7.3.6` (launch-editor, Windows), moderate `nodemailer <10.1.4`, `fast-uri <4.2.3`, `qs ≤6.16.0`.
+Фиксы:
+
+- **zod 3 → 4** (`catalog: ^4.6.6`): фиксировался только в v4, латания v3 нет. Сгенерированный
+  orval-код (`lib/api-zod`) и рантайм совместимы с v4 без перегенерации; **единственная поломка** —
+  идиома `import type { z } from "zod"` + `z.infer<...>` в v4 даёт `any` (27 каскадных TS7006 в
+  `transfer-validation.ts`/`transfer-excel.ts`). Правка: `import type { infer as zInfer } from "zod"`
+  - `zInfer<...>` (v4 экспортирует тип `infer`, проверено в `zod/v4/classic/external.d.cts`).
+    Полный `pnpm test` (63 проверки, включая data-transfer валидацию) — зелёный.
+- `catalog: vite ^7.3.7` (7.3.7 от 06.10 — проходит `minimumReleaseAge`);
+- `nodemailer ^10.1.4` прямо в api-server + override-правило заменено на `<10.1.4: ">=10.1.4"`;
+- overrides (правила на один пакет **объединены в одно** — урок §3.1, иначе старое правило
+  перехватывает матч: были отдельные `body-parser@…<2.3.0` и `qs@<6.16.0`):
+  `body-parser@>=2.0.0 <2.4.0: ">=2.4.0"`, `qs@<6.16.1: ">=6.16.1"`,
+  `fast-uri@>=3.0.0 <4.2.3: ">=4.2.3"`, `markdown-it@<=14.3.2: ">=14.3.3"`.
+
+Остаются 3 **moderate** (CI-гейт high их пропускает, фиксы — majors в dev-цепочках, не трогать
+без необходимости): `uuid <11.1.1` (`@capacitor/cli>xcode`), `glob ≤14.0.1`
+(`@capacitor/cli>rimraf`), `minimatch <11.0.1` (`eslint`). Все патченные версии на момент фикса
+старше 24 ч → `minimumReleaseAge` не мешал. Проверки: format:check, lint 0/0, typecheck, test 63/63,
+build, audit-high 0, `git diff --check` — успешно.
+
 ### 3.2 Код API (`artifacts/api-server/src/…`)
 
 | Проблема                                                                                                                                   | Фикс                                                                                                                                                                      | Файл(ы)                                       |

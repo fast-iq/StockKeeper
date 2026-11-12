@@ -1,8 +1,8 @@
 import { ImportDataBody } from "@workspace/api-zod";
-import type { z } from "zod";
+import type { infer as zInfer } from "zod";
 import { validPriceDate, shopKey } from "./price-selection";
 
-export type TransferBundle = z.infer<typeof ImportDataBody>["data"];
+export type TransferBundle = zInfer<typeof ImportDataBody>["data"];
 export type TransferCounts = Record<
   "items" | "categories" | "locations" | "units" | "shoppingList",
   number
