@@ -85,7 +85,7 @@
     "@react-oauth/google": "^0.13.5",
     "@zxing/browser": "0.1.5",
     "@zxing/library": "0.21.3",
-    "i18next": "^26.0.4",
+    "i18next": "^26.3.4",
     "i18next-browser-languagedetector": "^8.2.1",
     "react-i18next": "^17.0.2"
   }
